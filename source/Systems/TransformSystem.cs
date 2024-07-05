@@ -3,7 +3,7 @@ using Transforms.Components;
 using Transforms.Events;
 using Unmanaged.Collections;
 
-namespace Game.Systems
+namespace Simulation.Systems
 {
     public class TransformSystem : SystemBase
     {

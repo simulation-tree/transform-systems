@@ -1,10 +1,10 @@
-﻿using Game.Systems;
+﻿using Simulation.Systems;
 using System.Numerics;
 using Transforms.Components;
 using Transforms.Events;
 using Unmanaged;
 
-namespace Game.Tests
+namespace Simulation.Tests
 {
     public class TransformTests
     {

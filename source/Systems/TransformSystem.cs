@@ -9,7 +9,7 @@ namespace Simulation.Systems
     {
         private readonly Query<IsTransform> transformQuery;
         private readonly Query<IsTransform, LocalToWorld> ltwQuery;
-        private readonly UnmanagedArray<EntityID> parentEntities;
+        private readonly UnmanagedArray<eint> parentEntities;
         private readonly UnmanagedArray<Matrix4x4> ltwValues;
         private readonly UnmanagedList<UnmanagedList<uint>> sortedEntities;
 
@@ -18,9 +18,9 @@ namespace Simulation.Systems
             Subscribe<TransformUpdate>(Update);
             transformQuery = new(world);
             ltwQuery = new(world);
-            parentEntities = new();
-            ltwValues = new();
-            sortedEntities = new();
+            parentEntities = UnmanagedArray<eint>.Create();
+            ltwValues = UnmanagedArray<Matrix4x4>.Create();
+            sortedEntities = UnmanagedList<UnmanagedList<uint>>.Create();
         }
 
         public override void Dispose()
@@ -51,13 +51,13 @@ namespace Simulation.Systems
             sortedEntities.Clear();
             foreach (Query<IsTransform>.Result result in transformQuery)
             {
-                EntityID parent = world.GetParent(result.entity);
-                parentEntities[result.entity.value] = parent;
-                ltwValues[result.entity.value] = CalculateLocalToParent(result.entity);
+                eint parent = world.GetParent(result.entity);
+                parentEntities[result.entity] = parent;
+                ltwValues[result.entity] = CalculateLocalToParent(result.entity);
 
                 //calculate how deep the entity is
                 uint depth = 0;
-                EntityID current = parent;
+                eint current = parent;
                 while (current != default)
                 {
                     depth++;
@@ -66,12 +66,12 @@ namespace Simulation.Systems
 
                 if (sortedEntities.Count <= depth)
                 {
-                    sortedEntities.Add(new());
+                    sortedEntities.Add(UnmanagedList<uint>.Create());
                 }
 
                 //put the entity into a list located at the index, where the index is the depth
                 ref UnmanagedList<uint> entities = ref sortedEntities.GetRef(depth);
-                entities.Add(result.entity.value);
+                entities.Add(result.entity);
 
                 //make sure it has an ltw component
                 if (!world.ContainsComponent<LocalToWorld>(result.entity))
@@ -85,11 +85,11 @@ namespace Simulation.Systems
             {
                 foreach (uint entity in entities)
                 {
-                    EntityID parent = parentEntities[entity];
+                    eint parent = parentEntities[entity];
                     ref Matrix4x4 ltp = ref ltwValues.GetRef(entity);
                     if (parent != default)
                     {
-                        ref Matrix4x4 parentLtp = ref ltwValues.GetRef(parent.value);
+                        ref Matrix4x4 parentLtp = ref ltwValues.GetRef(parent);
                         ltp *= parentLtp;
                     }
                 }
@@ -102,11 +102,11 @@ namespace Simulation.Systems
             foreach (Query<IsTransform, LocalToWorld>.Result result in ltwQuery)
             {
                 ref LocalToWorld ltw = ref result.Component2;
-                ltw.value = ltwValues[result.entity.value];
+                ltw.value = ltwValues[result.entity];
             }
         }
 
-        private Matrix4x4 CalculateLocalToParent(EntityID entity)
+        private Matrix4x4 CalculateLocalToParent(eint entity)
         {
             ref Position position = ref world.GetComponentRef<Position>(entity, out bool hasPosition);
             ref EulerAngles eulerAngles = ref world.GetComponentRef<EulerAngles>(entity, out bool hasEulerAngles);

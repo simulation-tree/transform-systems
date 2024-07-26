@@ -20,7 +20,7 @@ namespace Simulation.Tests
             using World world = new();
             using TransformSystem transformSystem = new(world);
 
-            EntityID entity = world.CreateEntity();
+            eint entity = world.CreateEntity();
             world.AddComponent(entity, new Position(2, 2, 6));
             world.AddComponent(entity, new Scale(2, 1, 2));
             world.AddComponent(entity, new IsTransform());
@@ -39,13 +39,13 @@ namespace Simulation.Tests
             using World world = new();
             using TransformSystem transformSystem = new(world);
 
-            EntityID parent = world.CreateEntity();
+            eint parent = world.CreateEntity();
             world.AddComponent(parent, new Position(5, 0, 0));
             world.AddComponent(parent, EulerAngles.CreateFromDegrees(0f, 90f, 0f));
             world.AddComponent(parent, new Scale(2, 2, 2));
             world.AddComponent(parent, new IsTransform());
 
-            EntityID child = world.CreateEntity();
+            eint child = world.CreateEntity();
             world.AddComponent(child, new Position(0, 0, 2));
             world.AddComponent(child, new IsTransform());
             world.SetParent(child, parent);

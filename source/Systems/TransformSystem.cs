@@ -42,13 +42,18 @@ namespace Simulation.Systems
         {
             //clear state
             transformQuery.Fill();
-            parentEntities.Resize(transformQuery.Count + 1);
+            parentEntities.Resize(world.MaxEntityValue + 1);
             parentEntities.Clear();
-            ltwValues.Resize(transformQuery.Count + 1);
+            ltwValues.Resize(world.MaxEntityValue + 1);
             ltwValues.Clear();
 
+            //reset entities list
+            foreach (UnmanagedList<uint> entities in sortedEntities)
+            {
+                entities.Clear();
+            }
+
             //calculate ltp of all entities first
-            sortedEntities.Clear();
             foreach (Query<IsTransform>.Result result in transformQuery)
             {
                 eint parent = world.GetParent(result.entity);
@@ -66,7 +71,7 @@ namespace Simulation.Systems
 
                 if (sortedEntities.Count <= depth)
                 {
-                    sortedEntities.Add(UnmanagedList<uint>.Create());
+                    sortedEntities.Add(new());
                 }
 
                 //put the entity into a list located at the index, where the index is the depth

@@ -41,7 +41,7 @@ namespace Simulation.Systems
         private void Update(TransformUpdate e)
         {
             //clear state
-            transformQuery.Fill();
+            transformQuery.Update();
             parentEntities.Resize(world.MaxEntityValue + 1);
             parentEntities.Clear();
             ltwValues.Resize(world.MaxEntityValue + 1);
@@ -103,7 +103,7 @@ namespace Simulation.Systems
             }
 
             //apply ltw values
-            ltwQuery.Fill();
+            ltwQuery.Update();
             foreach (Query<IsTransform, LocalToWorld>.Result result in ltwQuery)
             {
                 ref LocalToWorld ltw = ref result.Component2;

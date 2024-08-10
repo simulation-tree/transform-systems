@@ -1,9 +1,10 @@
-﻿using System.Numerics;
+﻿using Simulation;
+using System.Numerics;
 using Transforms.Components;
 using Transforms.Events;
 using Unmanaged.Collections;
 
-namespace Simulation.Systems
+namespace Transforms.Systems
 {
     public class TransformSystem : SystemBase
     {

@@ -12,7 +12,7 @@ namespace Transforms.Systems
         private readonly Query<IsTransform, LocalToWorld> ltwQuery;
         private readonly UnmanagedArray<eint> parentEntities;
         private readonly UnmanagedArray<Matrix4x4> ltwValues;
-        private readonly UnmanagedList<UnmanagedList<uint>> sortedEntities;
+        private readonly UnmanagedList<UnmanagedList<eint>> sortedEntities;
 
         public TransformSystem(World world) : base(world)
         {
@@ -21,12 +21,12 @@ namespace Transforms.Systems
             ltwQuery = new(world);
             parentEntities = UnmanagedArray<eint>.Create();
             ltwValues = UnmanagedArray<Matrix4x4>.Create();
-            sortedEntities = UnmanagedList<UnmanagedList<uint>>.Create();
+            sortedEntities = UnmanagedList<UnmanagedList<eint>>.Create();
         }
 
         public override void Dispose()
         {
-            foreach (UnmanagedList<uint> entities in sortedEntities)
+            foreach (UnmanagedList<eint> entities in sortedEntities)
             {
                 entities.Dispose();
             }
@@ -49,7 +49,7 @@ namespace Transforms.Systems
             ltwValues.Clear();
 
             //reset entities list
-            foreach (UnmanagedList<uint> entities in sortedEntities)
+            foreach (UnmanagedList<eint> entities in sortedEntities)
             {
                 entities.Clear();
             }
@@ -76,7 +76,7 @@ namespace Transforms.Systems
                 }
 
                 //put the entity into a list located at the index, where the index is the depth
-                ref UnmanagedList<uint> entities = ref sortedEntities.GetRef(depth);
+                ref UnmanagedList<eint> entities = ref sortedEntities.GetRef(depth);
                 entities.Add(result.entity);
 
                 //make sure it has an ltw component
@@ -87,9 +87,9 @@ namespace Transforms.Systems
             }
 
             //calculate ltw from ltp
-            foreach (UnmanagedList<uint> entities in sortedEntities)
+            foreach (UnmanagedList<eint> entities in sortedEntities)
             {
-                foreach (uint entity in entities)
+                foreach (eint entity in entities)
                 {
                     eint parent = parentEntities[entity];
                     ref Matrix4x4 ltp = ref ltwValues.GetRef(entity);

@@ -58,8 +58,8 @@ namespace Transforms.Systems
             foreach (Query<IsTransform>.Result result in transformQuery)
             {
                 eint parent = world.GetParent(result.entity);
-                parentEntities[result.entity] = parent;
-                ltwValues[result.entity] = CalculateLocalToParent(result.entity);
+                parentEntities[(uint)result.entity] = parent;
+                ltwValues[(uint)result.entity] = CalculateLocalToParent(result.entity);
 
                 //calculate how deep the entity is
                 uint depth = 0;
@@ -91,11 +91,11 @@ namespace Transforms.Systems
             {
                 foreach (eint entity in entities)
                 {
-                    eint parent = parentEntities[entity];
-                    ref Matrix4x4 ltp = ref ltwValues.GetRef(entity);
+                    eint parent = parentEntities[(uint)entity];
+                    ref Matrix4x4 ltp = ref ltwValues.GetRef((uint)entity);
                     if (parent != default)
                     {
-                        ref Matrix4x4 parentLtp = ref ltwValues.GetRef(parent);
+                        ref Matrix4x4 parentLtp = ref ltwValues.GetRef((uint)parent);
                         ltp *= parentLtp;
                     }
                 }
@@ -108,7 +108,7 @@ namespace Transforms.Systems
             foreach (Query<IsTransform, LocalToWorld>.Result result in ltwQuery)
             {
                 ref LocalToWorld ltw = ref result.Component2;
-                ltw.value = ltwValues[result.entity];
+                ltw.value = ltwValues[(uint)result.entity];
             }
         }
 

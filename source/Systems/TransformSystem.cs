@@ -9,19 +9,23 @@ namespace Transforms.Systems
     public class TransformSystem : SystemBase
     {
         private readonly Query<IsTransform> transformQuery;
+        private readonly Query<IsTransform, Anchor> anchorsQuery;
         private readonly Query<IsTransform, LocalToWorld> ltwQuery;
         private readonly UnmanagedArray<eint> parentEntities;
         private readonly UnmanagedArray<Matrix4x4> ltwValues;
+        private readonly UnmanagedArray<Matrix4x4> anchoredLtwValues;
         private readonly UnmanagedList<UnmanagedList<eint>> sortedEntities;
 
         public TransformSystem(World world) : base(world)
         {
             Subscribe<TransformUpdate>(Update);
             transformQuery = new(world);
+            anchorsQuery = new(world);
             ltwQuery = new(world);
-            parentEntities = UnmanagedArray<eint>.Create();
-            ltwValues = UnmanagedArray<Matrix4x4>.Create();
-            sortedEntities = UnmanagedList<UnmanagedList<eint>>.Create();
+            parentEntities = new();
+            ltwValues = new();
+            anchoredLtwValues = new();
+            sortedEntities = new();
         }
 
         public override void Dispose()
@@ -33,8 +37,10 @@ namespace Transforms.Systems
 
             sortedEntities.Dispose();
             ltwValues.Dispose();
+            anchoredLtwValues.Dispose();
             parentEntities.Dispose();
             ltwQuery.Dispose();
+            anchorsQuery.Dispose();
             transformQuery.Dispose();
             base.Dispose();
         }
@@ -42,11 +48,12 @@ namespace Transforms.Systems
         private void Update(TransformUpdate e)
         {
             //clear state
-            transformQuery.Update();
             parentEntities.Resize(world.MaxEntityValue + 1);
             parentEntities.Clear();
             ltwValues.Resize(world.MaxEntityValue + 1);
             ltwValues.Clear();
+            anchoredLtwValues.Resize(world.MaxEntityValue + 1);
+            anchoredLtwValues.Clear();
 
             //reset entities list
             foreach (UnmanagedList<eint> entities in sortedEntities)
@@ -55,11 +62,13 @@ namespace Transforms.Systems
             }
 
             //calculate ltp of all entities first
-            foreach (Query<IsTransform>.Result result in transformQuery)
+            transformQuery.Update();
+            foreach (var x in transformQuery)
             {
-                eint parent = world.GetParent(result.entity);
-                parentEntities[(uint)result.entity] = parent;
-                ltwValues[(uint)result.entity] = CalculateLocalToParent(result.entity);
+                uint index = (uint)x.entity;
+                eint parent = world.GetParent(x.entity);
+                parentEntities[index] = parent;
+                ltwValues[index] = CalculateLocalToParent(x.entity);
 
                 //calculate how deep the entity is
                 uint depth = 0;
@@ -70,33 +79,68 @@ namespace Transforms.Systems
                     current = world.GetParent(current);
                 }
 
-                if (sortedEntities.Count <= depth)
+                while (sortedEntities.Count <= depth)
                 {
                     sortedEntities.Add(new());
                 }
 
                 //put the entity into a list located at the index, where the index is the depth
                 ref UnmanagedList<eint> entities = ref sortedEntities.GetRef(depth);
-                entities.Add(result.entity);
+                entities.Add(x.entity);
 
                 //make sure it has an ltw component
-                if (!world.ContainsComponent<LocalToWorld>(result.entity))
+                if (!world.ContainsComponent<LocalToWorld>(x.entity))
                 {
-                    world.AddComponent<LocalToWorld>(result.entity, default);
+                    world.AddComponent<LocalToWorld>(x.entity, default);
                 }
             }
 
-            //calculate ltw from ltp
+            //calculate ltw from ltp in descending order (roots to leafs)
+            anchorsQuery.Update();
             foreach (UnmanagedList<eint> entities in sortedEntities)
             {
                 foreach (eint entity in entities)
                 {
-                    eint parent = parentEntities[(uint)entity];
-                    ref Matrix4x4 ltp = ref ltwValues.GetRef((uint)entity);
+                    uint index = (uint)entity;
+                    eint parent = parentEntities[index];
+                    ref Matrix4x4 ltw = ref ltwValues.GetRef(index);
                     if (parent != default)
                     {
-                        ref Matrix4x4 parentLtp = ref ltwValues.GetRef((uint)parent);
-                        ltp *= parentLtp;
+                        ref Matrix4x4 parentLtw = ref ltwValues.GetRef((uint)parent);
+                        if (anchorsQuery.TryIndexOf(entity, out uint anchorIndex))
+                        {
+                            Anchor anchor = anchorsQuery[anchorIndex].Component2;
+                            Vector3 parentSize = new LocalToWorld(parentLtw).Scale;
+                            Vector3 parentPosition = new LocalToWorld(parentLtw).Position;
+                            float minX = anchor.minX.Evaluate(parentSize.X);
+                            float minY = anchor.minY.Evaluate(parentSize.Y);
+                            float minZ = anchor.minZ.Evaluate(parentSize.Z);
+                            float maxX = anchor.maxX.Evaluate(parentSize.X);
+                            float maxY = anchor.maxY.Evaluate(parentSize.Y);
+                            float maxZ = anchor.maxZ.Evaluate(parentSize.Z);
+                            Vector3 anchorScale = new(maxX - minX, maxY - minY, maxZ - minZ);
+                            Vector3 anchorPosition = parentPosition + new Vector3(minX, minY, minZ);
+                            if (anchorScale.X == default)
+                            {
+                                anchorScale.X = 1f;
+                            }
+
+                            if (anchorScale.Y == default)
+                            {
+                                anchorScale.Y = 1f;
+                            }
+
+                            if (anchorScale.Z == default)
+                            {
+                                anchorScale.Z = 1f;
+                            }
+
+                            ltw *= Matrix4x4.CreateScale(anchorScale) * Matrix4x4.CreateTranslation(anchorPosition);
+                        }
+                        else
+                        {
+                            ltw *= parentLtw;
+                        }
                     }
                 }
 

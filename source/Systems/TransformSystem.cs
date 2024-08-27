@@ -103,10 +103,10 @@ namespace Transforms.Systems
                 {
                     uint index = (uint)entity;
                     eint parent = parentEntities[index];
-                    ref Matrix4x4 ltw = ref ltwValues.GetRef(index);
+                    ref Matrix4x4 ltw = ref ltwValues[index];
                     if (parent != default)
                     {
-                        ref Matrix4x4 parentLtw = ref ltwValues.GetRef((uint)parent);
+                        ref Matrix4x4 parentLtw = ref ltwValues[(uint)parent];
                         if (anchorsQuery.TryIndexOf(entity, out uint anchorIndex))
                         {
                             Anchor anchor = anchorsQuery[anchorIndex].Component2;

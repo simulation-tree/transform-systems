@@ -11,9 +11,11 @@ namespace Transforms.Systems
         private readonly Query<IsTransform> transformQuery;
         private readonly Query<IsTransform, Anchor> anchorsQuery;
         private readonly Query<IsTransform, LocalToWorld> ltwQuery;
+        private readonly Query<IsTransform, WorldRotation> worldRotationQuery;
         private readonly UnmanagedArray<eint> parentEntities;
         private readonly UnmanagedArray<Matrix4x4> ltwValues;
         private readonly UnmanagedArray<Matrix4x4> anchoredLtwValues;
+        private readonly UnmanagedArray<Quaternion> worldRotations;
         private readonly UnmanagedList<UnmanagedList<eint>> sortedEntities;
 
         public TransformSystem(World world) : base(world)
@@ -22,9 +24,11 @@ namespace Transforms.Systems
             transformQuery = new(world);
             anchorsQuery = new(world);
             ltwQuery = new(world);
+            worldRotationQuery = new(world);
             parentEntities = new();
             ltwValues = new();
             anchoredLtwValues = new();
+            worldRotations = new();
             sortedEntities = new();
         }
 
@@ -36,9 +40,11 @@ namespace Transforms.Systems
             }
 
             sortedEntities.Dispose();
+            worldRotations.Dispose();
             ltwValues.Dispose();
             anchoredLtwValues.Dispose();
             parentEntities.Dispose();
+            worldRotationQuery.Dispose();
             ltwQuery.Dispose();
             anchorsQuery.Dispose();
             transformQuery.Dispose();
@@ -52,6 +58,8 @@ namespace Transforms.Systems
             parentEntities.Clear();
             ltwValues.Resize(world.MaxEntityValue + 1);
             ltwValues.Clear();
+            worldRotations.Resize(world.MaxEntityValue + 1);
+            worldRotations.Clear();
             anchoredLtwValues.Resize(world.MaxEntityValue + 1);
             anchoredLtwValues.Clear();
 
@@ -68,7 +76,8 @@ namespace Transforms.Systems
                 uint index = (uint)x.entity;
                 eint parent = world.GetParent(x.entity);
                 parentEntities[index] = parent;
-                ltwValues[index] = CalculateLocalToParent(x.entity);
+                ltwValues[index] = CalculateLocalToParent(x.entity, out Quaternion localRotation);
+                worldRotations[index] = localRotation;
 
                 //calculate how deep the entity is
                 uint depth = 0;
@@ -85,17 +94,22 @@ namespace Transforms.Systems
                 }
 
                 //put the entity into a list located at the index, where the index is the depth
-                ref UnmanagedList<eint> entities = ref sortedEntities.GetRef(depth);
+                ref UnmanagedList<eint> entities = ref sortedEntities[depth];
                 entities.Add(x.entity);
 
-                //make sure it has an ltw component
+                //make sure it has world component
                 if (!world.ContainsComponent<LocalToWorld>(x.entity))
                 {
                     world.AddComponent<LocalToWorld>(x.entity, default);
                 }
+
+                if (!world.ContainsComponent<WorldRotation>(x.entity))
+                {
+                    world.AddComponent<WorldRotation>(x.entity, default);
+                }
             }
 
-            //calculate ltw from ltp in descending order (roots to leafs)
+            //calculate ltw in descending order (roots towards leafs)
             anchorsQuery.Update();
             foreach (UnmanagedList<eint> entities in sortedEntities)
             {
@@ -104,9 +118,11 @@ namespace Transforms.Systems
                     uint index = (uint)entity;
                     eint parent = parentEntities[index];
                     ref Matrix4x4 ltw = ref ltwValues[index];
+                    ref Quaternion worldRotation = ref worldRotations[index];
                     if (parent != default)
                     {
                         ref Matrix4x4 parentLtw = ref ltwValues[(uint)parent];
+                        ref Quaternion parentWorldRotation = ref worldRotations[(uint)parent];
                         if (anchorsQuery.TryIndexOf(entity, out uint anchorIndex))
                         {
                             Anchor anchor = anchorsQuery[anchorIndex].Component2;
@@ -141,6 +157,8 @@ namespace Transforms.Systems
                         {
                             ltw *= parentLtw;
                         }
+
+                        worldRotation = parentWorldRotation * worldRotation;
                     }
                 }
 
@@ -149,20 +167,29 @@ namespace Transforms.Systems
 
             //apply ltw values
             ltwQuery.Update();
-            foreach (Query<IsTransform, LocalToWorld>.Result result in ltwQuery)
+            foreach (var r in ltwQuery)
             {
-                ref LocalToWorld ltw = ref result.Component2;
-                ltw.value = ltwValues[(uint)result.entity];
+                ref LocalToWorld ltw = ref r.Component2;
+                ltw.value = ltwValues[(uint)r.entity];
+            }
+
+            //apply world rotations
+            worldRotationQuery.Update();
+            foreach (var r in worldRotationQuery)
+            {
+                ref WorldRotation worldRotation = ref r.Component2;
+                worldRotation.value = worldRotations[(uint)r.entity];
             }
         }
 
-        private Matrix4x4 CalculateLocalToParent(eint entity)
+        private Matrix4x4 CalculateLocalToParent(eint entity, out Quaternion localRotation)
         {
             ref Position position = ref world.GetComponentRef<Position>(entity, out bool hasPosition);
             ref EulerAngles eulerAngles = ref world.GetComponentRef<EulerAngles>(entity, out bool hasEulerAngles);
             ref Rotation rotation = ref world.GetComponentRef<Rotation>(entity, out bool hasRotation);
             ref Scale scale = ref world.GetComponentRef<Scale>(entity, out bool hasScale);
             Matrix4x4 ltp = Matrix4x4.Identity;
+            localRotation = Quaternion.Identity;
             if (hasScale)
             {
                 ltp *= Matrix4x4.CreateScale(scale.value);
@@ -170,13 +197,15 @@ namespace Transforms.Systems
 
             if (hasEulerAngles)
             {
-                ltp *= Matrix4x4.CreateFromQuaternion(eulerAngles.AsQuaternion());
+                localRotation = eulerAngles.AsQuaternion() * localRotation;
             }
 
             if (hasRotation)
             {
-                ltp *= Matrix4x4.CreateFromQuaternion(rotation.value);
+                localRotation = rotation.value * localRotation;
             }
+
+            ltp *= Matrix4x4.CreateFromQuaternion(localRotation);
 
             if (hasPosition)
             {

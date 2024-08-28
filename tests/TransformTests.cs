@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System;
+using System.Numerics;
 using Transforms.Components;
 using Transforms.Events;
 using Transforms.Systems;
@@ -173,13 +174,79 @@ namespace Simulation.Tests
             Simulate(world);
 
             Assert.That(world.ContainsComponent<LocalToWorld>(child), Is.True);
-            LocalToWorld ltw = world.GetComponent<LocalToWorld>(child);
-            Assert.That(ltw.Position.X, Is.InRange(9 - 0.02f, 9 + 0.02f));
-            Assert.That(ltw.Position.Y, Is.InRange(-0.02f, 0.02f));
-            Assert.That(ltw.Position.Z, Is.InRange(-0.02f, 0.02f));
-            Assert.That(ltw.Scale.X, Is.InRange(2 - 0.02f, 2 + 0.02f));
-            Assert.That(ltw.Scale.Y, Is.InRange(2 - 0.02f, 2 + 0.02f));
-            Assert.That(ltw.Scale.Z, Is.InRange(2 - 0.02f, 2 + 0.02f));
+            LocalToWorld childLtw = world.GetComponent<LocalToWorld>(child);
+            Assert.That(childLtw.Position.X, Is.EqualTo(9).Within(0.1f));
+            Assert.That(childLtw.Position.Y, Is.EqualTo(0f).Within(0.1f));
+            Assert.That(childLtw.Position.Z, Is.EqualTo(0f).Within(0.1f));
+            Assert.That(childLtw.Scale.X, Is.EqualTo(2).Within(0.1f));
+            Assert.That(childLtw.Scale.Y, Is.EqualTo(2).Within(0.1f));
+            Assert.That(childLtw.Scale.Z, Is.EqualTo(2).Within(0.1f));
+        }
+
+        [Test]
+        public void WorldRotationFromLocal()
+        {
+            Quaternion sampleRotation = Quaternion.CreateFromYawPitchRoll(0.5f, 0.5f, 0.5f);
+            using World world = new();
+            using TransformSystem transforms = new(world);
+
+            eint entity = world.CreateEntity();
+            world.AddComponent(entity, new IsTransform());
+            world.AddComponent(entity, new Rotation(sampleRotation));
+
+            Simulate(world);
+
+            Quaternion worldRotation = world.GetComponent<WorldRotation>(entity).value;
+            Assert.That(worldRotation, Is.EqualTo(sampleRotation));
+        }
+
+        [Test]
+        public void WorldRotationFromNestedChild()
+        {
+            Quaternion localRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI * 0.25f);
+            using World world = new();
+            using TransformSystem transforms = new(world);
+
+            eint parent = world.CreateEntity();
+            world.AddComponent(parent, new IsTransform());
+            world.AddComponent(parent, new Rotation(localRotation));
+
+            eint child = world.CreateEntity(parent);
+            world.AddComponent(child, new IsTransform());
+            world.AddComponent(child, new Rotation(localRotation));
+
+            Simulate(world);
+
+            Quaternion worldRotation = world.GetComponent<WorldRotation>(child).value;
+            Quaternion expectedWorldRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI * 0.5f);
+            Assert.That(worldRotation.X, Is.EqualTo(expectedWorldRotation.X).Within(0.01f));
+            Assert.That(worldRotation.Y, Is.EqualTo(expectedWorldRotation.Y).Within(0.01f));
+            Assert.That(worldRotation.Z, Is.EqualTo(expectedWorldRotation.Z).Within(0.01f));
+
+            Matrix4x4.Invert(world.GetComponent<LocalToWorld>(parent).value, out Matrix4x4 wtl);
+            Quaternion localRotationAgain = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(wtl) * worldRotation);
+            Assert.That(localRotationAgain.X, Is.EqualTo(localRotation.X).Within(0.01f));
+            Assert.That(localRotationAgain.Y, Is.EqualTo(localRotation.Y).Within(0.01f));
+            Assert.That(localRotationAgain.Z, Is.EqualTo(localRotation.Z).Within(0.01f));
+        }
+
+        [Test]
+        public void LocalPositionFromWorld()
+        {
+            LocalToWorld child = new(new Vector3(1, 2, 3), Quaternion.Identity, new Vector3(1, 1, 1));
+            LocalToWorld parent = new(new Vector3(5, 0, 0), Quaternion.Identity, new Vector3(2, 3, 2));
+            Vector3 localPosition = child.Position;
+            Vector3 worldPosition = Vector3.Transform(localPosition, parent.value);
+            Assert.That(worldPosition.X, Is.EqualTo(7).Within(0.1f));
+            Assert.That(worldPosition.Y, Is.EqualTo(6).Within(0.1f));
+            Assert.That(worldPosition.Z, Is.EqualTo(6).Within(0.1f));
+
+            Vector3 desiredWorldPosition = new(1, -2, -2);
+            Matrix4x4.Invert(parent.value, out Matrix4x4 invParent);
+            Vector3 desiredLocalPosition = Vector3.Transform(desiredWorldPosition, invParent);
+            Assert.That(desiredLocalPosition.X, Is.EqualTo(-2f).Within(0.1f));
+            Assert.That(desiredLocalPosition.Y, Is.EqualTo(-0.6666f).Within(0.1f));
+            Assert.That(desiredLocalPosition.Z, Is.EqualTo(-1f).Within(0.1f));
         }
     }
 }

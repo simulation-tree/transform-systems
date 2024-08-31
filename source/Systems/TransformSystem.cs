@@ -73,11 +73,11 @@ namespace Transforms.Systems
             transformQuery.Update();
             foreach (var x in transformQuery)
             {
-                uint index = (uint)x.entity;
+                uint entity = x.entity;
                 uint parent = world.GetParent(x.entity);
-                parentEntities[index] = parent;
-                ltwValues[index] = CalculateLocalToParent(x.entity, out Quaternion localRotation);
-                worldRotations[index] = localRotation;
+                parentEntities[entity] = parent;
+                ltwValues[entity] = CalculateLocalToParent(x.entity, out Quaternion localRotation);
+                worldRotations[entity] = localRotation;
 
                 //calculate how deep the entity is
                 uint depth = 0;
@@ -115,19 +115,17 @@ namespace Transforms.Systems
             {
                 foreach (uint entity in entities)
                 {
-                    uint index = (uint)entity;
-                    uint parent = parentEntities[index];
-                    ref Matrix4x4 ltw = ref ltwValues[index];
-                    ref Quaternion worldRotation = ref worldRotations[index];
+                    uint parent = parentEntities[entity];
+                    ref Matrix4x4 ltw = ref ltwValues[entity];
+                    ref Quaternion worldRotation = ref worldRotations[entity];
                     if (parent != default)
                     {
-                        ref Matrix4x4 parentLtw = ref ltwValues[(uint)parent];
-                        ref Quaternion parentWorldRotation = ref worldRotations[(uint)parent];
+                        LocalToWorld parentLtw = new(ltwValues[parent]);
+                        Quaternion parentWorldRotation = worldRotations[parent];
                         if (anchorsQuery.TryIndexOf(entity, out uint anchorIndex))
                         {
                             Anchor anchor = anchorsQuery[anchorIndex].Component2;
-                            Vector3 parentSize = new LocalToWorld(parentLtw).Scale;
-                            Vector3 parentPosition = new LocalToWorld(parentLtw).Position;
+                            (Vector3 parentPosition, Quaternion _, Vector3 parentSize) = parentLtw.Decomposed;
                             float minX = anchor.minX.Evaluate(parentSize.X);
                             float minY = anchor.minY.Evaluate(parentSize.Y);
                             float minZ = anchor.minZ.Evaluate(parentSize.Z);
@@ -155,7 +153,7 @@ namespace Transforms.Systems
                         }
                         else
                         {
-                            ltw *= parentLtw;
+                            ltw *= parentLtw.value;
                         }
 
                         worldRotation = parentWorldRotation * worldRotation;
@@ -170,7 +168,7 @@ namespace Transforms.Systems
             foreach (var r in ltwQuery)
             {
                 ref LocalToWorld ltw = ref r.Component2;
-                ltw.value = ltwValues[(uint)r.entity];
+                ltw.value = ltwValues[r.entity];
             }
 
             //apply world rotations
@@ -178,7 +176,7 @@ namespace Transforms.Systems
             foreach (var r in worldRotationQuery)
             {
                 ref WorldRotation worldRotation = ref r.Component2;
-                worldRotation.value = worldRotations[(uint)r.entity];
+                worldRotation.value = worldRotations[r.entity];
             }
         }
 

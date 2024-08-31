@@ -62,16 +62,16 @@ namespace Simulation.Tests
             using World world = new();
             using TransformSystem transformSystem = new(world);
 
-            eint entity = world.CreateEntity();
+            uint entity = world.CreateEntity();
             world.AddComponent(entity, new IsTransform());
             world.AddComponent(entity, new Scale(1920, 1080, 1));
 
-            eint crosshairHorizontal = world.CreateEntity(entity);
+            uint crosshairHorizontal = world.CreateEntity(entity);
             world.AddComponent(crosshairHorizontal, new IsTransform());
             world.AddComponent(crosshairHorizontal, Anchor.Centered);
             world.AddComponent(crosshairHorizontal, new Scale(32, 1, 1));
 
-            eint crosshairVertical = world.CreateEntity(entity);
+            uint crosshairVertical = world.CreateEntity(entity);
             world.AddComponent(crosshairVertical, new IsTransform());
             world.AddComponent(crosshairVertical, Anchor.Centered);
             world.AddComponent(crosshairVertical, new Scale(1, 32, 1));
@@ -97,21 +97,21 @@ namespace Simulation.Tests
             using World world = new();
             using TransformSystem transformSystem = new(world);
 
-            eint entity = world.CreateEntity();
+            uint entity = world.CreateEntity();
             world.AddComponent(entity, new IsTransform());
             world.AddComponent(entity, new Scale(1920, 1080, 1));
 
-            eint bottomLeftCanvas = world.CreateEntity(entity);
+            uint bottomLeftCanvas = world.CreateEntity(entity);
             world.AddComponent(bottomLeftCanvas, new IsTransform());
             world.AddComponent(bottomLeftCanvas, new Anchor(new(0f, false), new(0f, false), new(0f, false), new(0.5f, false), new(0.5f, false), new(1f, false)));
 
-            eint pointInsideCanvas = world.CreateEntity(bottomLeftCanvas);
+            uint pointInsideCanvas = world.CreateEntity(bottomLeftCanvas);
             world.AddComponent(pointInsideCanvas, new IsTransform());
             world.AddComponent(pointInsideCanvas, new Position(32f, 32f, 0));
             world.AddComponent(pointInsideCanvas, new Scale(32, 32, 1));
             world.AddComponent(pointInsideCanvas, Anchor.Centered);
 
-            eint copyPoint = world.CreateEntity(pointInsideCanvas);
+            uint copyPoint = world.CreateEntity(pointInsideCanvas);
             world.AddComponent(copyPoint, new IsTransform());
             world.AddComponent(copyPoint, new Anchor(new(0f, false), new(0f, false), new(0f, false), new(1f, false), new(1f, false), new(1f, false)));
 
@@ -142,7 +142,7 @@ namespace Simulation.Tests
             using World world = new();
             using TransformSystem transformSystem = new(world);
 
-            eint entity = world.CreateEntity();
+            uint entity = world.CreateEntity();
             world.AddComponent(entity, new Position(2, 2, 6));
             world.AddComponent(entity, new Scale(2, 1, 2));
             world.AddComponent(entity, new IsTransform());
@@ -160,13 +160,13 @@ namespace Simulation.Tests
             using World world = new();
             using TransformSystem transformSystem = new(world);
 
-            eint parent = world.CreateEntity();
+            uint parent = world.CreateEntity();
             world.AddComponent(parent, new Position(5, 0, 0));
             world.AddComponent(parent, EulerAngles.CreateFromDegrees(0f, 90f, 0f));
             world.AddComponent(parent, new Scale(2, 2, 2));
             world.AddComponent(parent, new IsTransform());
 
-            eint child = world.CreateEntity();
+            uint child = world.CreateEntity();
             world.AddComponent(child, new Position(0, 0, 2));
             world.AddComponent(child, new IsTransform());
             world.SetParent(child, parent);
@@ -190,7 +190,7 @@ namespace Simulation.Tests
             using World world = new();
             using TransformSystem transforms = new(world);
 
-            eint entity = world.CreateEntity();
+            uint entity = world.CreateEntity();
             world.AddComponent(entity, new IsTransform());
             world.AddComponent(entity, new Rotation(sampleRotation));
 
@@ -207,11 +207,11 @@ namespace Simulation.Tests
             using World world = new();
             using TransformSystem transforms = new(world);
 
-            eint parent = world.CreateEntity();
+            uint parent = world.CreateEntity();
             world.AddComponent(parent, new IsTransform());
             world.AddComponent(parent, new Rotation(localRotation));
 
-            eint child = world.CreateEntity(parent);
+            uint child = world.CreateEntity(parent);
             world.AddComponent(child, new IsTransform());
             world.AddComponent(child, new Rotation(localRotation));
 

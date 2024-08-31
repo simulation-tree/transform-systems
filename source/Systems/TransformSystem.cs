@@ -149,7 +149,8 @@ namespace Transforms.Systems
                                 anchorScale.Z = 1f;
                             }
 
-                            ltw *= Matrix4x4.CreateScale(anchorScale) * Matrix4x4.CreateTranslation(anchorPosition);
+                            Matrix4x4 anchorLtw = Matrix4x4.CreateScale(anchorScale) * Matrix4x4.CreateTranslation(anchorPosition);
+                            ltw *= anchorLtw;
                         }
                         else
                         {

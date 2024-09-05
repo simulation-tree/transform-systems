@@ -8,11 +8,13 @@ namespace Transforms.Systems
 {
     public class TransformSystem : SystemBase
     {
-        private readonly Query<IsTransform> transformQuery;
-        private readonly Query<IsTransform, Anchor> anchorsQuery;
-        private readonly Query<IsTransform, LocalToWorld> ltwQuery;
-        private readonly Query<IsTransform, WorldRotation> worldRotationQuery;
+        private readonly ComponentQuery<IsTransform> transformQuery;
+        private readonly ComponentQuery<IsTransform, Pivot> pivotQuery;
+        private readonly ComponentQuery<IsTransform, Anchor> anchorsQuery;
+        private readonly ComponentQuery<IsTransform, LocalToWorld> ltwQuery;
+        private readonly ComponentQuery<IsTransform, WorldRotation> worldRotationQuery;
         private readonly UnmanagedArray<uint> parentEntities;
+        private readonly UnmanagedArray<Vector3> pivots;
         private readonly UnmanagedArray<Matrix4x4> ltwValues;
         private readonly UnmanagedArray<Matrix4x4> anchoredLtwValues;
         private readonly UnmanagedArray<Quaternion> worldRotations;
@@ -21,11 +23,13 @@ namespace Transforms.Systems
         public TransformSystem(World world) : base(world)
         {
             Subscribe<TransformUpdate>(Update);
-            transformQuery = new(world);
-            anchorsQuery = new(world);
-            ltwQuery = new(world);
-            worldRotationQuery = new(world);
+            transformQuery = new();
+            pivotQuery = new();
+            anchorsQuery = new();
+            ltwQuery = new();
+            worldRotationQuery = new();
             parentEntities = new();
+            pivots = new();
             ltwValues = new();
             anchoredLtwValues = new();
             worldRotations = new();
@@ -44,9 +48,11 @@ namespace Transforms.Systems
             ltwValues.Dispose();
             anchoredLtwValues.Dispose();
             parentEntities.Dispose();
+            pivots.Dispose();
             worldRotationQuery.Dispose();
             ltwQuery.Dispose();
             anchorsQuery.Dispose();
+            pivotQuery.Dispose();
             transformQuery.Dispose();
             base.Dispose();
         }
@@ -62,6 +68,8 @@ namespace Transforms.Systems
             worldRotations.Clear();
             anchoredLtwValues.Resize(world.MaxEntityValue + 1);
             anchoredLtwValues.Clear();
+            pivots.Resize(world.MaxEntityValue + 1);
+            pivots.Clear();
 
             //reset entities list
             foreach (UnmanagedList<uint> entities in sortedEntities)
@@ -69,8 +77,15 @@ namespace Transforms.Systems
                 entities.Clear();
             }
 
+            //find pivot values for later
+            pivotQuery.Update(world);
+            foreach (var x in pivotQuery)
+            {
+                pivots[x.entity] = x.Component2.value;
+            }
+
             //calculate ltp of all entities first
-            transformQuery.Update();
+            transformQuery.Update(world);
             foreach (var x in transformQuery)
             {
                 uint entity = x.entity;
@@ -110,7 +125,7 @@ namespace Transforms.Systems
             }
 
             //calculate ltw in descending order (roots towards leafs)
-            anchorsQuery.Update();
+            anchorsQuery.Update(world);
             foreach (UnmanagedList<uint> entities in sortedEntities)
             {
                 foreach (uint entity in entities)
@@ -165,7 +180,7 @@ namespace Transforms.Systems
             }
 
             //apply ltw values
-            ltwQuery.Update();
+            ltwQuery.Update(world);
             foreach (var r in ltwQuery)
             {
                 ref LocalToWorld ltw = ref r.Component2;
@@ -173,7 +188,7 @@ namespace Transforms.Systems
             }
 
             //apply world rotations
-            worldRotationQuery.Update();
+            worldRotationQuery.Update(world);
             foreach (var r in worldRotationQuery)
             {
                 ref WorldRotation worldRotation = ref r.Component2;
@@ -208,7 +223,14 @@ namespace Transforms.Systems
 
             if (hasPosition)
             {
-                ltp *= Matrix4x4.CreateTranslation(position.value);
+                if (hasScale)
+                {
+                    ltp *= Matrix4x4.CreateTranslation(position.value - pivots[entity] * scale.value);
+                }
+                else
+                {
+                    ltp *= Matrix4x4.CreateTranslation(position.value - pivots[entity]);
+                }
             }
 
             return ltp;

@@ -25,22 +25,22 @@ namespace Simulation.Tests
         public void CheckAnchorDataType()
         {
             Anchor.value left = new(0.92123f, true);
-            Assert.That(left.IsAbsolute, Is.True);
+            Assert.That(left.IsRelative, Is.True);
             Assert.That(left.Number, Is.EqualTo(0.92123f).Within(0.1f));
 
             Anchor.value right = new(456f, false);
-            Assert.That(right.IsAbsolute, Is.False);
+            Assert.That(right.IsRelative, Is.False);
             Assert.That(right.Number, Is.EqualTo(456f).Within(0.1f));
 
             Assert.That(left, Is.Not.EqualTo(right));
             Anchor.value up = new(0.5f, true);
             Assert.That(up, Is.Not.EqualTo(left));
-            Assert.That(up.IsAbsolute, Is.True);
+            Assert.That(up.IsRelative, Is.True);
             Assert.That(up.Number, Is.EqualTo(0.5f).Within(0.1f));
 
             Anchor.value down = new(-3.1412f, false);
             Assert.That(down, Is.Not.EqualTo(right));
-            Assert.That(down.IsAbsolute, Is.False);
+            Assert.That(down.IsRelative, Is.False);
             Assert.That(down.Number, Is.EqualTo(-3.1412f).Within(0.1f));
 
             using RandomGenerator rng = new();
@@ -50,9 +50,9 @@ namespace Simulation.Tests
                 bool isNormalized = rng.NextBool();
                 Anchor.value value = new(number, isNormalized);
                 value.Number *= 2;
-                value.IsAbsolute = !value.IsAbsolute;
+                value.IsRelative = !value.IsRelative;
                 Assert.That(value.Number, Is.EqualTo(number * 2).Within(0.1f));
-                Assert.That(value.IsAbsolute, Is.EqualTo(!isNormalized));
+                Assert.That(value.IsRelative, Is.EqualTo(!isNormalized));
             }
         }
 
@@ -134,6 +134,30 @@ namespace Simulation.Tests
             Assert.That(copyPointLtw.Position.Y, Is.EqualTo(pointInsideCanvasLtw.Position.Y));
             Assert.That(copyPointLtw.Scale.X, Is.EqualTo(pointInsideCanvasLtw.Scale.X));
             Assert.That(copyPointLtw.Scale.Y, Is.EqualTo(pointInsideCanvasLtw.Scale.Y));
+        }
+
+        [Test]
+        public void AnchorWithBorder()
+        {
+            using World world = new();
+            using TransformSystem transformSystem = new(world);
+
+            uint canvas = world.CreateEntity();
+            world.AddComponent(canvas, new IsTransform());
+            world.AddComponent(canvas, new Scale(1920, 1080, 1));
+
+            uint bordered = world.CreateEntity(canvas);
+            world.AddComponent(bordered, new IsTransform());
+            world.AddComponent(bordered, new Scale(1, 1));
+            world.AddComponent(bordered, new Anchor(new(10f, true), new(10f, true), default, new(10f, true), new(10f, true), default));
+
+            Simulate(world);
+
+            LocalToWorld borderedLtw = world.GetComponent<LocalToWorld>(bordered);
+            Assert.That(borderedLtw.Position.X, Is.EqualTo(10));
+            Assert.That(borderedLtw.Position.Y, Is.EqualTo(10));
+            Assert.That(borderedLtw.Scale.X, Is.EqualTo(1900));
+            Assert.That(borderedLtw.Scale.Y, Is.EqualTo(1060));
         }
 
         [Test]

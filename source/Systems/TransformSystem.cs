@@ -85,13 +85,14 @@ namespace Transforms.Systems
             }
 
             //calculate ltp of all entities first
+            anchorsQuery.Update(world);
             transformQuery.Update(world);
             foreach (var x in transformQuery)
             {
                 uint entity = x.entity;
                 uint parent = world.GetParent(x.entity);
                 parentEntities[entity] = parent;
-                ltwValues[entity] = CalculateLocalToParent(x.entity, out Quaternion localRotation);
+                ltwValues[entity] = CalculateLocalToParent(x.entity, !anchorsQuery.Contains(x.entity), out Quaternion localRotation);
                 worldRotations[entity] = localRotation;
 
                 //calculate how deep the entity is
@@ -125,7 +126,6 @@ namespace Transforms.Systems
             }
 
             //calculate ltw in descending order (roots towards leafs)
-            anchorsQuery.Update(world);
             foreach (UnmanagedList<uint> entities in sortedEntities)
             {
                 foreach (uint entity in entities)
@@ -141,12 +141,54 @@ namespace Transforms.Systems
                         {
                             Anchor anchor = anchorsQuery[anchorIndex].Component2;
                             (Vector3 parentPosition, Quaternion _, Vector3 parentSize) = parentLtw.Decomposed;
-                            float minX = anchor.minX.Evaluate(parentSize.X);
-                            float minY = anchor.minY.Evaluate(parentSize.Y);
-                            float minZ = anchor.minZ.Evaluate(parentSize.Z);
-                            float maxX = anchor.maxX.Evaluate(parentSize.X);
-                            float maxY = anchor.maxY.Evaluate(parentSize.Y);
-                            float maxZ = anchor.maxZ.Evaluate(parentSize.Z);
+                            float minX = anchor.minX.Number;
+                            float minY = anchor.minY.Number;
+                            float minZ = anchor.minZ.Number;
+                            float maxX = anchor.maxX.Number;
+                            float maxY = anchor.maxY.Number;
+                            float maxZ = anchor.maxZ.Number;
+                            if (!anchor.minX.IsRelative)
+                            {
+                                minX *= parentSize.X;
+                            }
+
+                            if (!anchor.minY.IsRelative)
+                            {
+                                minY *= parentSize.Y;
+                            }
+
+                            if (!anchor.minZ.IsRelative)
+                            {
+                                minZ *= parentSize.Z;
+                            }
+
+                            if (!anchor.maxX.IsRelative)
+                            {
+                                maxX *= parentSize.X;
+                            }
+                            else
+                            {
+                                maxX = parentSize.X - maxX;
+                            }
+
+                            if (!anchor.maxY.IsRelative)
+                            {
+                                maxY *= parentSize.Y;
+                            }
+                            else
+                            {
+                                maxY = parentSize.Y - maxY;
+                            }
+
+                            if (!anchor.maxZ.IsRelative)
+                            {
+                                maxZ *= parentSize.Z;
+                            }
+                            else
+                            {
+                                maxZ = parentSize.Z - maxZ;
+                            }
+
                             Vector3 anchorScale = new(maxX - minX, maxY - minY, maxZ - minZ);
                             Vector3 anchorPosition = parentPosition + new Vector3(minX, minY, minZ);
                             if (anchorScale.X == default)
@@ -166,6 +208,11 @@ namespace Transforms.Systems
 
                             Matrix4x4 anchorLtw = Matrix4x4.CreateScale(anchorScale) * Matrix4x4.CreateTranslation(anchorPosition);
                             ltw *= anchorLtw;
+
+                            //affect ltw by pivot
+                            Vector3 anchorPivot = pivots[entity];
+                            Vector3 pivotOffset = anchorPivot * new LocalToWorld(ltw).Scale;
+                            ltw *= Matrix4x4.CreateTranslation(-pivotOffset);
                         }
                         else
                         {
@@ -196,7 +243,7 @@ namespace Transforms.Systems
             }
         }
 
-        private Matrix4x4 CalculateLocalToParent(uint entity, out Quaternion localRotation)
+        private Matrix4x4 CalculateLocalToParent(uint entity, bool applyPivot, out Quaternion localRotation)
         {
             ref Position position = ref world.TryGetComponentRef<Position>(entity, out bool hasPosition);
             ref EulerAngles eulerAngles = ref world.TryGetComponentRef<EulerAngles>(entity, out bool hasEulerAngles);
@@ -223,13 +270,14 @@ namespace Transforms.Systems
 
             if (hasPosition)
             {
+                Vector3 pivot = applyPivot ? pivots[entity] : Vector3.Zero;
                 if (hasScale)
                 {
-                    ltp *= Matrix4x4.CreateTranslation(position.value - pivots[entity] * scale.value);
+                    ltp *= Matrix4x4.CreateTranslation(position.value - pivot * scale.value);
                 }
                 else
                 {
-                    ltp *= Matrix4x4.CreateTranslation(position.value - pivots[entity]);
+                    ltp *= Matrix4x4.CreateTranslation(position.value - pivot);
                 }
             }
 

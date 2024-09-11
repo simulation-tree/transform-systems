@@ -101,9 +101,10 @@ namespace Simulation.Tests
             world.AddComponent(entity, new IsTransform());
             world.AddComponent(entity, new Scale(1920, 1080, 1));
 
+            Anchor anchor = new(new(0f, false), new(0f, false), new(0f, false), new(0.5f, false), new(0.5f, false), new(1f, false));
             uint bottomLeftCanvas = world.CreateEntity(entity);
             world.AddComponent(bottomLeftCanvas, new IsTransform());
-            world.AddComponent(bottomLeftCanvas, new Anchor(new(0f, false), new(0f, false), new(0f, false), new(0.5f, false), new(0.5f, false), new(1f, false)));
+            world.AddComponent(bottomLeftCanvas, anchor);
 
             uint pointInsideCanvas = world.CreateEntity(bottomLeftCanvas);
             world.AddComponent(pointInsideCanvas, new IsTransform());

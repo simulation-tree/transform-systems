@@ -126,6 +126,7 @@ namespace Transforms.Systems
             }
 
             //calculate ltw in descending order (roots towards leafs)
+            anchorsQuery.Update(world);
             foreach (UnmanagedList<uint> entities in sortedEntities)
             {
                 foreach (uint entity in entities)

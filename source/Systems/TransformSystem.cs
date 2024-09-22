@@ -148,22 +148,22 @@ namespace Transforms.Systems
                             float maxX = anchor.maxX.Number;
                             float maxY = anchor.maxY.Number;
                             float maxZ = anchor.maxZ.Number;
-                            if (!anchor.minX.IsRelative)
+                            if (!anchor.minX.FromEdge)
                             {
                                 minX *= parentSize.X;
                             }
 
-                            if (!anchor.minY.IsRelative)
+                            if (!anchor.minY.FromEdge)
                             {
                                 minY *= parentSize.Y;
                             }
 
-                            if (!anchor.minZ.IsRelative)
+                            if (!anchor.minZ.FromEdge)
                             {
                                 minZ *= parentSize.Z;
                             }
 
-                            if (!anchor.maxX.IsRelative)
+                            if (!anchor.maxX.FromEdge)
                             {
                                 maxX *= parentSize.X;
                             }
@@ -172,7 +172,7 @@ namespace Transforms.Systems
                                 maxX = parentSize.X - maxX;
                             }
 
-                            if (!anchor.maxY.IsRelative)
+                            if (!anchor.maxY.FromEdge)
                             {
                                 maxY *= parentSize.Y;
                             }
@@ -181,7 +181,7 @@ namespace Transforms.Systems
                                 maxY = parentSize.Y - maxY;
                             }
 
-                            if (!anchor.maxZ.IsRelative)
+                            if (!anchor.maxZ.FromEdge)
                             {
                                 maxZ *= parentSize.Z;
                             }

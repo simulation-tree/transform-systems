@@ -25,22 +25,22 @@ namespace Simulation.Tests
         public void CheckAnchorDataType()
         {
             Anchor.value left = new(0.92123f, true);
-            Assert.That(left.IsRelative, Is.True);
+            Assert.That(left.FromEdge, Is.True);
             Assert.That(left.Number, Is.EqualTo(0.92123f).Within(0.1f));
 
             Anchor.value right = new(456f, false);
-            Assert.That(right.IsRelative, Is.False);
+            Assert.That(right.FromEdge, Is.False);
             Assert.That(right.Number, Is.EqualTo(456f).Within(0.1f));
 
             Assert.That(left, Is.Not.EqualTo(right));
             Anchor.value up = new(0.5f, true);
             Assert.That(up, Is.Not.EqualTo(left));
-            Assert.That(up.IsRelative, Is.True);
+            Assert.That(up.FromEdge, Is.True);
             Assert.That(up.Number, Is.EqualTo(0.5f).Within(0.1f));
 
             Anchor.value down = new(-3.1412f, false);
             Assert.That(down, Is.Not.EqualTo(right));
-            Assert.That(down.IsRelative, Is.False);
+            Assert.That(down.FromEdge, Is.False);
             Assert.That(down.Number, Is.EqualTo(-3.1412f).Within(0.1f));
 
             using RandomGenerator rng = new();
@@ -50,9 +50,9 @@ namespace Simulation.Tests
                 bool isNormalized = rng.NextBool();
                 Anchor.value value = new(number, isNormalized);
                 value.Number *= 2;
-                value.IsRelative = !value.IsRelative;
+                value.FromEdge = !value.FromEdge;
                 Assert.That(value.Number, Is.EqualTo(number * 2).Within(0.1f));
-                Assert.That(value.IsRelative, Is.EqualTo(!isNormalized));
+                Assert.That(value.FromEdge, Is.EqualTo(!isNormalized));
             }
         }
 

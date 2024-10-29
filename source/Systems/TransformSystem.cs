@@ -1,12 +1,14 @@
 ﻿using Simulation;
+using Simulation.Functions;
+using System;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Transforms.Components;
-using Transforms.Events;
 using Unmanaged.Collections;
 
 namespace Transforms.Systems
 {
-    public class TransformSystem : SystemBase
+    public readonly struct TransformSystem : ISystem
     {
         private readonly ComponentQuery<IsTransform> transformQuery;
         private readonly ComponentQuery<IsTransform, Pivot> pivotQuery;
@@ -20,9 +22,34 @@ namespace Transforms.Systems
         private readonly UnmanagedArray<Quaternion> worldRotations;
         private readonly UnmanagedList<UnmanagedList<uint>> sortedEntities;
 
-        public TransformSystem(World world) : base(world)
+        readonly unsafe InitializeFunction ISystem.Initialize => new(&Initialize);
+        readonly unsafe IterateFunction ISystem.Update => new(&Update);
+        readonly unsafe FinalizeFunction ISystem.Finalize => new(&Finalize);
+
+        [UnmanagedCallersOnly]
+        private static void Initialize(SystemContainer container, World world)
         {
-            Subscribe<TransformUpdate>(Update);
+        }
+
+        [UnmanagedCallersOnly]
+        private static void Update(SystemContainer container, World world, TimeSpan delta)
+        {
+            ref TransformSystem system = ref container.Read<TransformSystem>();
+            system.Update(world);
+        }
+
+        [UnmanagedCallersOnly]
+        private static void Finalize(SystemContainer container, World world)
+        {
+            if (container.World == world)
+            {
+                ref TransformSystem system = ref container.Read<TransformSystem>();
+                system.CleanUp();
+            }
+        }
+
+        public TransformSystem()
+        {
             transformQuery = new();
             pivotQuery = new();
             anchorsQuery = new();
@@ -36,7 +63,7 @@ namespace Transforms.Systems
             sortedEntities = new();
         }
 
-        public override void Dispose()
+        private void CleanUp()
         {
             foreach (UnmanagedList<uint> entities in sortedEntities)
             {
@@ -54,21 +81,20 @@ namespace Transforms.Systems
             anchorsQuery.Dispose();
             pivotQuery.Dispose();
             transformQuery.Dispose();
-            base.Dispose();
         }
 
-        private void Update(TransformUpdate e)
+        private void Update(World world)
         {
             //clear state
-            parentEntities.Resize(world.MaxEntityValue + 1);
+            parentEntities.Length = world.MaxEntityValue + 1;
             parentEntities.Clear();
-            ltwValues.Resize(world.MaxEntityValue + 1);
+            ltwValues.Length = world.MaxEntityValue + 1;
             ltwValues.Clear();
-            worldRotations.Resize(world.MaxEntityValue + 1);
+            worldRotations.Length = world.MaxEntityValue + 1;
             worldRotations.Clear();
-            anchoredLtwValues.Resize(world.MaxEntityValue + 1);
+            anchoredLtwValues.Length = world.MaxEntityValue + 1;
             anchoredLtwValues.Clear();
-            pivots.Resize(world.MaxEntityValue + 1);
+            pivots.Length = world.MaxEntityValue + 1;
             pivots.Clear();
 
             //reset entities list
@@ -90,9 +116,9 @@ namespace Transforms.Systems
             foreach (var x in transformQuery)
             {
                 uint entity = x.entity;
-                uint parent = world.GetParent(x.entity);
+                uint parent = world.GetParent(entity);
                 parentEntities[entity] = parent;
-                ltwValues[entity] = CalculateLocalToParent(x.entity, !anchorsQuery.Contains(x.entity), out Quaternion localRotation);
+                ltwValues[entity] = CalculateLocalToParent(world, entity, !anchorsQuery.Contains(entity), out Quaternion localRotation);
                 worldRotations[entity] = localRotation;
 
                 //calculate how deep the entity is
@@ -111,17 +137,17 @@ namespace Transforms.Systems
 
                 //put the entity into a list located at the index, where the index is the depth
                 ref UnmanagedList<uint> entities = ref sortedEntities[depth];
-                entities.Add(x.entity);
+                entities.Add(entity);
 
                 //make sure it has world component
-                if (!world.ContainsComponent<LocalToWorld>(x.entity))
+                if (!world.ContainsComponent<LocalToWorld>(entity))
                 {
-                    world.AddComponent<LocalToWorld>(x.entity, default);
+                    world.AddComponent<LocalToWorld>(entity, default);
                 }
 
-                if (!world.ContainsComponent<WorldRotation>(x.entity))
+                if (!world.ContainsComponent<WorldRotation>(entity))
                 {
-                    world.AddComponent<WorldRotation>(x.entity, default);
+                    world.AddComponent<WorldRotation>(entity, default);
                 }
             }
 
@@ -245,7 +271,7 @@ namespace Transforms.Systems
             }
         }
 
-        private Matrix4x4 CalculateLocalToParent(uint entity, bool applyPivot, out Quaternion localRotation)
+        private Matrix4x4 CalculateLocalToParent(World world, uint entity, bool applyPivot, out Quaternion localRotation)
         {
             ref Position position = ref world.TryGetComponentRef<Position>(entity, out bool hasPosition);
             ref EulerAngles eulerAngles = ref world.TryGetComponentRef<EulerAngles>(entity, out bool hasEulerAngles);

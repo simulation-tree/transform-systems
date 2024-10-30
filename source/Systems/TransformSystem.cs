@@ -1,10 +1,10 @@
-﻿using Simulation;
+﻿using Collections;
+using Simulation;
 using Simulation.Functions;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Transforms.Components;
-using Unmanaged.Collections;
 
 namespace Transforms.Systems
 {
@@ -15,12 +15,12 @@ namespace Transforms.Systems
         private readonly ComponentQuery<IsTransform, Anchor> anchorsQuery;
         private readonly ComponentQuery<IsTransform, LocalToWorld> ltwQuery;
         private readonly ComponentQuery<IsTransform, WorldRotation> worldRotationQuery;
-        private readonly UnmanagedArray<uint> parentEntities;
-        private readonly UnmanagedArray<Vector3> pivots;
-        private readonly UnmanagedArray<Matrix4x4> ltwValues;
-        private readonly UnmanagedArray<Matrix4x4> anchoredLtwValues;
-        private readonly UnmanagedArray<Quaternion> worldRotations;
-        private readonly UnmanagedList<UnmanagedList<uint>> sortedEntities;
+        private readonly Array<uint> parentEntities;
+        private readonly Array<Vector3> pivots;
+        private readonly Array<Matrix4x4> ltwValues;
+        private readonly Array<Matrix4x4> anchoredLtwValues;
+        private readonly Array<Quaternion> worldRotations;
+        private readonly List<List<uint>> sortedEntities;
 
         readonly unsafe InitializeFunction ISystem.Initialize => new(&Initialize);
         readonly unsafe IterateFunction ISystem.Update => new(&Update);
@@ -65,7 +65,7 @@ namespace Transforms.Systems
 
         private void CleanUp()
         {
-            foreach (UnmanagedList<uint> entities in sortedEntities)
+            foreach (List<uint> entities in sortedEntities)
             {
                 entities.Dispose();
             }
@@ -98,7 +98,7 @@ namespace Transforms.Systems
             pivots.Clear();
 
             //reset entities list
-            foreach (UnmanagedList<uint> entities in sortedEntities)
+            foreach (List<uint> entities in sortedEntities)
             {
                 entities.Clear();
             }
@@ -136,7 +136,7 @@ namespace Transforms.Systems
                 }
 
                 //put the entity into a list located at the index, where the index is the depth
-                ref UnmanagedList<uint> entities = ref sortedEntities[depth];
+                ref List<uint> entities = ref sortedEntities[depth];
                 entities.Add(entity);
 
                 //make sure it has world component
@@ -154,7 +154,7 @@ namespace Transforms.Systems
             //calculate ltw in descending order (roots towards leafs)
             //where each entity list is descending in depth
             anchorsQuery.Update(world);
-            foreach (UnmanagedList<uint> entities in sortedEntities)
+            foreach (List<uint> entities in sortedEntities)
             {
                 foreach (uint entity in entities)
                 {

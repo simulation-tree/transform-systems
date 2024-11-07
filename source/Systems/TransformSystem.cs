@@ -273,6 +273,7 @@ namespace Transforms.Systems
 
         private Matrix4x4 CalculateLocalToParent(World world, uint entity, bool applyPivot, out Quaternion localRotation)
         {
+            //todo: efficiency: optimize this by fetching all instances of these components ahead of time
             ref Position position = ref world.TryGetComponentRef<Position>(entity, out bool hasPosition);
             ref EulerAngles eulerAngles = ref world.TryGetComponentRef<EulerAngles>(entity, out bool hasEulerAngles);
             ref Rotation rotation = ref world.TryGetComponentRef<Rotation>(entity, out bool hasRotation);

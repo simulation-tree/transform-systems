@@ -21,12 +21,14 @@ namespace Transforms.Tests
             World.AddComponent(entity, new IsTransform());
             World.AddComponent(entity, new Scale(1920, 1080, 1));
 
-            uint crosshairHorizontal = World.CreateEntity(entity);
+            uint crosshairHorizontal = World.CreateEntity();
+            World.SetParent(crosshairHorizontal, entity);
             World.AddComponent(crosshairHorizontal, new IsTransform());
             World.AddComponent(crosshairHorizontal, Anchor.Centered);
             World.AddComponent(crosshairHorizontal, new Scale(32, 1, 1));
 
-            uint crosshairVertical = World.CreateEntity(entity);
+            uint crosshairVertical = World.CreateEntity();
+            World.SetParent(crosshairVertical, entity);
             World.AddComponent(crosshairVertical, new IsTransform());
             World.AddComponent(crosshairVertical, Anchor.Centered);
             World.AddComponent(crosshairVertical, new Scale(1, 32, 1));
@@ -54,17 +56,20 @@ namespace Transforms.Tests
             World.AddComponent(entity, new Scale(1920, 1080, 1));
 
             Anchor anchor = new(new(0f, false), new(0f, false), new(0f, false), new(0.5f, false), new(0.5f, false), new(1f, false));
-            uint bottomLeftCanvas = World.CreateEntity(entity);
+            uint bottomLeftCanvas = World.CreateEntity();
+            World.SetParent(bottomLeftCanvas, entity);
             World.AddComponent(bottomLeftCanvas, new IsTransform());
             World.AddComponent(bottomLeftCanvas, anchor);
 
-            uint pointInsideCanvas = World.CreateEntity(bottomLeftCanvas);
+            uint pointInsideCanvas = World.CreateEntity();
+            World.SetParent(pointInsideCanvas, bottomLeftCanvas);
             World.AddComponent(pointInsideCanvas, new IsTransform());
             World.AddComponent(pointInsideCanvas, new Position(32f, 32f, 0));
             World.AddComponent(pointInsideCanvas, new Scale(32, 32, 1));
             World.AddComponent(pointInsideCanvas, Anchor.Centered);
 
-            uint copyPoint = World.CreateEntity(pointInsideCanvas);
+            uint copyPoint = World.CreateEntity();
+            World.SetParent(copyPoint, pointInsideCanvas);
             World.AddComponent(copyPoint, new IsTransform());
             World.AddComponent(copyPoint, new Anchor(new(0f, false), new(0f, false), new(0f, false), new(1f, false), new(1f, false), new(1f, false)));
 
@@ -96,7 +101,8 @@ namespace Transforms.Tests
             World.AddComponent(canvas, new IsTransform());
             World.AddComponent(canvas, new Scale(1920, 1080, 1));
 
-            uint bordered = World.CreateEntity(canvas);
+            uint bordered = World.CreateEntity();
+            World.SetParent(bordered, canvas);
             World.AddComponent(bordered, new IsTransform());
             World.AddComponent(bordered, new Scale(1, 1));
             World.AddComponent(bordered, new Anchor(new(10f, true), new(10f, true), default, new(10f, true), new(10f, true), default));
@@ -135,10 +141,11 @@ namespace Transforms.Tests
             World.AddComponent(parent, new IsTransform());
 
             uint child = World.CreateEntity();
+            World.SetParent(child, parent);
             World.AddComponent(child, new Position(0, 0, 2));
             World.AddComponent(child, new IsTransform());
-            World.SetParent(child, parent);
 
+            Assert.That(World.GetParent(child), Is.EqualTo(parent));
             Simulator.Update(TimeSpan.FromSeconds(0.01f));
 
             Assert.That(World.ContainsComponent<LocalToWorld>(child), Is.True);
@@ -174,7 +181,8 @@ namespace Transforms.Tests
             World.AddComponent(parent, new IsTransform());
             World.AddComponent(parent, new Rotation(localRotation));
 
-            uint child = World.CreateEntity(parent);
+            uint child = World.CreateEntity();
+            World.SetParent(child, parent);
             World.AddComponent(child, new IsTransform());
             World.AddComponent(child, new Rotation(localRotation));
 

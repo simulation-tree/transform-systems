@@ -23,5 +23,17 @@ namespace Transforms.Tests
             Assert.That(desiredLocalPosition.Y, Is.EqualTo(-0.6666f).Within(0.1f));
             Assert.That(desiredLocalPosition.Z, Is.EqualTo(-1f).Within(0.1f));
         }
+
+        [Test]
+        public void ConvertEulerToRotation()
+        {
+            EulerAngles euler = EulerAngles.CreateFromDegrees(0f, 90f, 0f);
+            Quaternion a = Quaternion.CreateFromYawPitchRoll(euler.value.Y, euler.value.X, euler.value.Z);
+            Quaternion b = euler.AsQuaternion();
+            Assert.That(a.X, Is.EqualTo(b.X).Within(0.001f));
+            Assert.That(a.Y, Is.EqualTo(b.Y).Within(0.001f));
+            Assert.That(a.Z, Is.EqualTo(b.Z).Within(0.001f));
+            Assert.That(a.W, Is.EqualTo(b.W).Within(0.001f));
+        }
     }
 }

@@ -5,6 +5,7 @@ using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Transforms.Components;
+using Unmanaged;
 
 namespace Transforms.Systems
 {
@@ -85,16 +86,22 @@ namespace Transforms.Systems
 
         private void Update(World world)
         {
+            //ensure capacity is met
+            uint capacity = Allocations.GetNextPowerOf2(world.MaxEntityValue + 1);
+            if (ltwValues.Length < capacity)
+            {
+                parentEntities.Length = capacity;
+                ltwValues.Length = capacity;
+                worldRotations.Length = capacity;
+                anchoredLtwValues.Length = capacity;
+                pivots.Length = capacity;
+            }
+
             //clear state
-            parentEntities.Length = world.MaxEntityValue + 1;
             parentEntities.Clear();
-            ltwValues.Length = world.MaxEntityValue + 1;
             ltwValues.Clear();
-            worldRotations.Length = world.MaxEntityValue + 1;
             worldRotations.Clear();
-            anchoredLtwValues.Length = world.MaxEntityValue + 1;
             anchoredLtwValues.Clear();
-            pivots.Length = world.MaxEntityValue + 1;
             pivots.Clear();
 
             //reset entities list

@@ -3,6 +3,7 @@ using System;
 using System.Numerics;
 using Transforms.Components;
 using Transforms.Systems;
+using Worlds;
 
 namespace Transforms.Tests
 {
@@ -11,6 +12,15 @@ namespace Transforms.Tests
         protected override void SetUp()
         {
             base.SetUp();
+            ComponentType.Register<IsTransform>();
+            ComponentType.Register<Position>();
+            ComponentType.Register<Rotation>();
+            ComponentType.Register<WorldRotation>();
+            ComponentType.Register<EulerAngles>();
+            ComponentType.Register<Scale>();
+            ComponentType.Register<Anchor>();
+            ComponentType.Register<Pivot>();
+            ComponentType.Register<LocalToWorld>();
             Simulator.AddSystem<TransformSystem>();
         }
 

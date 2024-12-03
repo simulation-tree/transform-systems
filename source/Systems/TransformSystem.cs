@@ -1,16 +1,14 @@
 ﻿using Collections;
 using Simulation;
-using Simulation.Functions;
 using System;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using Transforms.Components;
 using Unmanaged;
 using Worlds;
 
 namespace Transforms.Systems
 {
-    public readonly struct TransformSystem : ISystem
+    public readonly partial struct TransformSystem : ISystem
     {
         private readonly ComponentQuery<IsTransform> transformQuery;
         private readonly ComponentQuery<IsTransform, Pivot> pivotQuery;
@@ -24,29 +22,20 @@ namespace Transforms.Systems
         private readonly Array<Quaternion> worldRotations;
         private readonly List<List<uint>> sortedEntities;
 
-        readonly unsafe StartSystem ISystem.Start => new(&Start);
-        readonly unsafe UpdateSystem ISystem.Update => new(&Update);
-        readonly unsafe FinishSystem ISystem.Finish => new(&Finish);
-
-        [UnmanagedCallersOnly]
-        private static void Start(SystemContainer container, World world)
+        void ISystem.Start(in SystemContainer systemContainer, in World world)
         {
         }
 
-        [UnmanagedCallersOnly]
-        private static void Update(SystemContainer container, World world, TimeSpan delta)
+        void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)
         {
-            ref TransformSystem system = ref container.Read<TransformSystem>();
-            system.Update(world);
+            Update(world);
         }
 
-        [UnmanagedCallersOnly]
-        private static void Finish(SystemContainer container, World world)
+        void ISystem.Finish(in SystemContainer systemContainer, in World world)
         {
-            if (container.World == world)
+            if (systemContainer.World == world)
             {
-                ref TransformSystem system = ref container.Read<TransformSystem>();
-                system.CleanUp();
+                CleanUp();
             }
         }
 

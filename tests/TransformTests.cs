@@ -21,7 +21,7 @@ namespace Transforms.Tests
             ComponentType.Register<Anchor>();
             ComponentType.Register<Pivot>();
             ComponentType.Register<LocalToWorld>();
-            Simulator.AddSystem<TransformSystem>();
+            Simulator.AddSystem(new TransformSystem());
         }
 
         [Test]

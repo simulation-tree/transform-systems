@@ -10,17 +10,26 @@ namespace Transforms.Systems
 {
     public readonly partial struct TransformSystem : ISystem
     {
-        private readonly ComponentQuery<IsTransform> transformQuery;
-        private readonly ComponentQuery<IsTransform, Pivot> pivotQuery;
-        private readonly ComponentQuery<IsTransform, Anchor> anchorsQuery;
-        private readonly ComponentQuery<IsTransform, LocalToWorld> ltwQuery;
-        private readonly ComponentQuery<IsTransform, WorldRotation> worldRotationQuery;
         private readonly Array<uint> parentEntities;
         private readonly Array<Vector3> pivots;
+        private readonly Array<Anchor> anchors;
+        private readonly Array<bool> hasAnchors;
         private readonly Array<Matrix4x4> ltwValues;
         private readonly Array<Matrix4x4> anchoredLtwValues;
         private readonly Array<Quaternion> worldRotations;
         private readonly List<List<uint>> sortedEntities;
+
+        public TransformSystem()
+        {
+            parentEntities = new();
+            pivots = new();
+            anchors = new();
+            hasAnchors = new();
+            ltwValues = new();
+            anchoredLtwValues = new();
+            worldRotations = new();
+            sortedEntities = new();
+        }
 
         void ISystem.Start(in SystemContainer systemContainer, in World world)
         {
@@ -33,28 +42,9 @@ namespace Transforms.Systems
 
         void ISystem.Finish(in SystemContainer systemContainer, in World world)
         {
-            if (systemContainer.World == world)
-            {
-                CleanUp();
-            }
         }
 
-        public TransformSystem()
-        {
-            transformQuery = new();
-            pivotQuery = new();
-            anchorsQuery = new();
-            ltwQuery = new();
-            worldRotationQuery = new();
-            parentEntities = new();
-            pivots = new();
-            ltwValues = new();
-            anchoredLtwValues = new();
-            worldRotations = new();
-            sortedEntities = new();
-        }
-
-        private void CleanUp()
+        void IDisposable.Dispose()
         {
             foreach (List<uint> entities in sortedEntities)
             {
@@ -66,15 +56,12 @@ namespace Transforms.Systems
             ltwValues.Dispose();
             anchoredLtwValues.Dispose();
             parentEntities.Dispose();
+            anchors.Dispose();
+            hasAnchors.Dispose();
             pivots.Dispose();
-            worldRotationQuery.Dispose();
-            ltwQuery.Dispose();
-            anchorsQuery.Dispose();
-            pivotQuery.Dispose();
-            transformQuery.Dispose();
         }
 
-        private void Update(World world)
+        private readonly void Update(World world)
         {
             //ensure capacity is met
             uint capacity = Allocations.GetNextPowerOf2(world.MaxEntityValue + 1);
@@ -85,6 +72,8 @@ namespace Transforms.Systems
                 worldRotations.Length = capacity;
                 anchoredLtwValues.Length = capacity;
                 pivots.Length = capacity;
+                anchors.Length = capacity;
+                hasAnchors.Length = capacity;
             }
 
             //clear state
@@ -93,6 +82,8 @@ namespace Transforms.Systems
             worldRotations.Clear();
             anchoredLtwValues.Clear();
             pivots.Clear();
+            hasAnchors.Clear();
+            anchors.Clear();
 
             //reset entities list
             foreach (List<uint> entities in sortedEntities)
@@ -100,57 +91,13 @@ namespace Transforms.Systems
                 entities.Clear();
             }
 
-            //find pivot values for later
-            pivotQuery.Update(world);
-            foreach (var x in pivotQuery)
-            {
-                pivots[x.entity] = x.Component2.value;
-            }
-
-            //calculate ltp of all entities first
-            anchorsQuery.Update(world);
-            transformQuery.Update(world);
-            foreach (var x in transformQuery)
-            {
-                uint entity = x.entity;
-                uint parent = world.GetParent(entity);
-                parentEntities[entity] = parent;
-                ltwValues[entity] = CalculateLocalToParent(world, entity, !anchorsQuery.Contains(entity), out Quaternion localRotation);
-                worldRotations[entity] = localRotation;
-
-                //calculate how deep the entity is
-                uint depth = 0;
-                uint current = parent;
-                while (current != default)
-                {
-                    depth++;
-                    current = world.GetParent(current);
-                }
-
-                while (sortedEntities.Count <= depth)
-                {
-                    sortedEntities.Add(new());
-                }
-
-                //put the entity into a list located at the index, where the index is the depth
-                ref List<uint> entities = ref sortedEntities[depth];
-                entities.Add(entity);
-
-                //make sure it has world component
-                if (!world.ContainsComponent<LocalToWorld>(entity))
-                {
-                    world.AddComponent<LocalToWorld>(entity, default);
-                }
-
-                if (!world.ContainsComponent<WorldRotation>(entity))
-                {
-                    world.AddComponent<WorldRotation>(entity, default);
-                }
-            }
+            FindPivots(world);
+            FindAnchors(world);
+            AddMissingComponents(world);
+            FindTransforms(world);
 
             //calculate ltw in descending order (roots towards leafs)
             //where each entity list is descending in depth
-            anchorsQuery.Update(world);
             foreach (List<uint> entities in sortedEntities)
             {
                 foreach (uint entity in entities)
@@ -162,9 +109,9 @@ namespace Transforms.Systems
                     {
                         LocalToWorld parentLtw = new(ltwValues[parent]);
                         Quaternion parentWorldRotation = worldRotations[parent];
-                        if (anchorsQuery.TryIndexOf(entity, out uint anchorIndex))
+                        if (hasAnchors[entity])
                         {
-                            Anchor anchor = anchorsQuery[anchorIndex].Component2;
+                            Anchor anchor = anchors[entity];
                             (Vector3 parentPosition, Quaternion _, Vector3 parentSize) = parentLtw.Decomposed;
                             float minX = anchor.minX.Number;
                             float minY = anchor.minY.Number;
@@ -251,30 +198,114 @@ namespace Transforms.Systems
                 entities.Clear();
             }
 
-            //apply ltw values
-            ltwQuery.Update(world);
+            //apply values
+            ApplyValues(world);
+        }
+
+        private readonly void FindTransforms(World world)
+        {
+            ComponentQuery<IsTransform> transformQuery = new(world);
+            foreach (var r in transformQuery)
+            {
+                uint entity = r.entity;
+                uint parent = world.GetParent(entity);
+                parentEntities[entity] = parent;
+                ltwValues[entity] = CalculateLocalToParent(world, entity, !hasAnchors[entity], out Quaternion localRotation);
+                worldRotations[entity] = localRotation;
+
+                //calculate how deep the entity is
+                uint depth = 0;
+                uint current = parent;
+                while (current != default)
+                {
+                    depth++;
+                    current = world.GetParent(current);
+                }
+
+                while (sortedEntities.Count <= depth)
+                {
+                    sortedEntities.Add(new());
+                }
+
+                //put the entity into a list located at the index, where the index is the depth
+                sortedEntities[depth].Add(entity);
+            }
+        }
+
+        private readonly void AddMissingComponents(World world)
+        {
+            using Operation operation = new();
+            ComponentQuery<IsTransform> transformWithoutLtwQuery = new(world, ComponentType.GetBitSet<LocalToWorld>());
+            foreach (var r in transformWithoutLtwQuery)
+            {
+                operation.SelectEntity(r.entity);
+            }
+
+            if (operation.Count > 0)
+            {
+                operation.AddComponent<LocalToWorld>();
+                world.Perform(operation);
+                operation.ClearInstructions();
+            }
+
+            ComponentQuery<IsTransform> transformWithoutWorldRotationQuery = new(world, ComponentType.GetBitSet<WorldRotation>());
+            foreach (var r in transformWithoutWorldRotationQuery)
+            {
+                operation.SelectEntity(r.entity);
+            }
+
+            if (operation.Count > 0)
+            {
+                operation.AddComponent<WorldRotation>();
+                world.Perform(operation);
+            }
+        }
+
+        private readonly void FindAnchors(World world)
+        {
+            ComponentQuery<IsTransform, Anchor> anchorQuery = new(world);
+            foreach (var r in anchorQuery)
+            {
+                ref Anchor anchor = ref r.component2;
+                anchors[r.entity] = anchor;
+                hasAnchors[r.entity] = true;
+            }
+        }
+
+        private readonly void FindPivots(World world)
+        {
+            ComponentQuery<IsTransform, Pivot> pivotQuery = new(world);
+            foreach (var r in pivotQuery)
+            {
+                ref Pivot pivot = ref r.component2;
+                pivots[r.entity] = pivot.value;
+            }
+        }
+
+        private readonly void ApplyValues(World world)
+        {
+            ComponentQuery<LocalToWorld> ltwQuery = new(world);
             foreach (var r in ltwQuery)
             {
-                ref LocalToWorld ltw = ref r.Component2;
+                ref LocalToWorld ltw = ref r.component1;
                 ltw.value = ltwValues[r.entity];
             }
 
-            //apply world rotations
-            worldRotationQuery.Update(world);
+            ComponentQuery<WorldRotation> worldRotationQuery = new(world);
             foreach (var r in worldRotationQuery)
             {
-                ref WorldRotation worldRotation = ref r.Component2;
+                ref WorldRotation worldRotation = ref r.component1;
                 worldRotation.value = worldRotations[r.entity];
             }
         }
 
-        private Matrix4x4 CalculateLocalToParent(World world, uint entity, bool applyPivot, out Quaternion localRotation)
+        private readonly Matrix4x4 CalculateLocalToParent(World world, uint entity, bool applyPivot, out Quaternion localRotation)
         {
             //todo: efficiency: optimize this by fetching all instances of these components ahead of time
-            ref Position position = ref world.TryGetComponentRef<Position>(entity, out bool hasPosition);
-            ref EulerAngles eulerAngles = ref world.TryGetComponentRef<EulerAngles>(entity, out bool hasEulerAngles);
-            ref Rotation rotation = ref world.TryGetComponentRef<Rotation>(entity, out bool hasRotation);
-            ref Scale scale = ref world.TryGetComponentRef<Scale>(entity, out bool hasScale);
+            ref Position position = ref world.TryGetComponent<Position>(entity, out bool hasPosition);
+            ref EulerAngles eulerAngles = ref world.TryGetComponent<EulerAngles>(entity, out bool hasEulerAngles);
+            ref Rotation rotation = ref world.TryGetComponent<Rotation>(entity, out bool hasRotation);
+            ref Scale scale = ref world.TryGetComponent<Scale>(entity, out bool hasScale);
             Matrix4x4 ltp = Matrix4x4.Identity;
             localRotation = Quaternion.Identity;
             if (hasScale)

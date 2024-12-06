@@ -42,23 +42,22 @@ namespace Transforms.Systems
 
         void ISystem.Finish(in SystemContainer systemContainer, in World world)
         {
-        }
-
-        void IDisposable.Dispose()
-        {
-            foreach (List<uint> entities in sortedEntities)
+            if (systemContainer.World == world)
             {
-                entities.Dispose();
-            }
+                foreach (List<uint> entities in sortedEntities)
+                {
+                    entities.Dispose();
+                }
 
-            sortedEntities.Dispose();
-            worldRotations.Dispose();
-            ltwValues.Dispose();
-            anchoredLtwValues.Dispose();
-            parentEntities.Dispose();
-            anchors.Dispose();
-            hasAnchors.Dispose();
-            pivots.Dispose();
+                sortedEntities.Dispose();
+                worldRotations.Dispose();
+                ltwValues.Dispose();
+                anchoredLtwValues.Dispose();
+                parentEntities.Dispose();
+                anchors.Dispose();
+                hasAnchors.Dispose();
+                pivots.Dispose();
+            }
         }
 
         private readonly void Update(World world)

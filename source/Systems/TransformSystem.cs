@@ -33,6 +33,10 @@ namespace Transforms.Systems
 
         void ISystem.Start(in SystemContainer systemContainer, in World world)
         {
+            if (systemContainer.World == world)
+            {
+                systemContainer.Write(new TransformSystem());
+            }
         }
 
         void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)

@@ -287,14 +287,14 @@ namespace Transforms.Systems
 
         private readonly void ApplyValues(World world)
         {
-            ComponentQuery<LocalToWorld> ltwQuery = new(world);
+            ComponentQuery<LocalToWorld, IsTransform> ltwQuery = new(world);
             foreach (var r in ltwQuery)
             {
                 ref LocalToWorld ltw = ref r.component1;
                 ltw.value = ltwValues[r.entity];
             }
 
-            ComponentQuery<WorldRotation> worldRotationQuery = new(world);
+            ComponentQuery<WorldRotation, IsTransform> worldRotationQuery = new(world);
             foreach (var r in worldRotationQuery)
             {
                 ref WorldRotation worldRotation = ref r.component1;

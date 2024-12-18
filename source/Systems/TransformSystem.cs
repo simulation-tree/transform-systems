@@ -18,6 +18,7 @@ namespace Transforms.Systems
         private readonly Array<Matrix4x4> anchoredLtwValues;
         private readonly Array<Quaternion> worldRotations;
         private readonly List<List<uint>> sortedEntities;
+        private readonly Operation operation;
 
         public TransformSystem()
         {
@@ -29,6 +30,7 @@ namespace Transforms.Systems
             anchoredLtwValues = new();
             worldRotations = new();
             sortedEntities = new();
+            operation = new();
         }
 
         void ISystem.Start(in SystemContainer systemContainer, in World world)
@@ -53,6 +55,7 @@ namespace Transforms.Systems
                     entities.Dispose();
                 }
 
+                operation.Dispose();
                 sortedEntities.Dispose();
                 worldRotations.Dispose();
                 ltwValues.Dispose();
@@ -237,7 +240,6 @@ namespace Transforms.Systems
 
         private readonly void AddMissingComponents(World world)
         {
-            using Operation operation = new();
             ComponentQuery<IsTransform> transformWithoutLtwQuery = new(world, ComponentType.GetBitSet<LocalToWorld>());
             foreach (var r in transformWithoutLtwQuery)
             {
@@ -247,8 +249,7 @@ namespace Transforms.Systems
             if (operation.Count > 0)
             {
                 operation.AddComponent<LocalToWorld>();
-                world.Perform(operation);
-                operation.ClearInstructions();
+                operation.ClearSelection();
             }
 
             ComponentQuery<IsTransform> transformWithoutWorldRotationQuery = new(world, ComponentType.GetBitSet<WorldRotation>());
@@ -257,10 +258,15 @@ namespace Transforms.Systems
                 operation.SelectEntity(r.entity);
             }
 
-            if (operation.Count > 0)
+            if (operation.HasSelection)
             {
                 operation.AddComponent<WorldRotation>();
+            }
+
+            if (operation.Count > 0)
+            {
                 world.Perform(operation);
+                operation.Clear();
             }
         }
 
@@ -291,14 +297,16 @@ namespace Transforms.Systems
             foreach (var r in ltwQuery)
             {
                 ref LocalToWorld ltw = ref r.component1;
-                ltw.value = ltwValues[r.entity];
+                Matrix4x4 calculated = ltwValues[r.entity];
+                ltw.value = calculated;
             }
 
             ComponentQuery<WorldRotation, IsTransform> worldRotationQuery = new(world);
             foreach (var r in worldRotationQuery)
             {
                 ref WorldRotation worldRotation = ref r.component1;
-                worldRotation.value = worldRotations[r.entity];
+                Quaternion calculated = worldRotations[r.entity];
+                worldRotation.value = calculated;
             }
         }
 

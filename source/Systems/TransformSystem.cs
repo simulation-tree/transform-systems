@@ -19,6 +19,10 @@ namespace Transforms.Systems
         private readonly Array<Quaternion> worldRotations;
         private readonly List<List<uint>> sortedEntities;
         private readonly Operation operation;
+        private readonly Array<Vector3> positions;
+        private readonly Array<Vector3> scales;
+        private readonly Array<Quaternion> rotations;
+        private readonly Array<Quaternion> eulerAngles;
 
         public TransformSystem()
         {
@@ -31,6 +35,10 @@ namespace Transforms.Systems
             worldRotations = new();
             sortedEntities = new();
             operation = new();
+            positions = new();
+            scales = new();
+            rotations = new();
+            eulerAngles = new();
         }
 
         void ISystem.Start(in SystemContainer systemContainer, in World world)
@@ -55,6 +63,10 @@ namespace Transforms.Systems
                     entities.Dispose();
                 }
 
+                eulerAngles.Dispose();
+                rotations.Dispose();
+                scales.Dispose();
+                positions.Dispose();
                 operation.Dispose();
                 sortedEntities.Dispose();
                 worldRotations.Dispose();
@@ -80,6 +92,10 @@ namespace Transforms.Systems
                 pivots.Length = capacity;
                 anchors.Length = capacity;
                 hasAnchors.Length = capacity;
+                positions.Length = capacity;
+                scales.Length = capacity;
+                rotations.Length = capacity;
+                eulerAngles.Length = capacity;
             }
 
             //clear state
@@ -90,6 +106,34 @@ namespace Transforms.Systems
             pivots.Clear();
             hasAnchors.Clear();
             anchors.Clear();
+            positions.Clear();
+            scales.Fill(Vector3.One);
+            rotations.Fill(Quaternion.Identity);
+            eulerAngles.Fill(Quaternion.Identity);
+
+            ComponentQuery<Position> positionQuery = new(world);
+            foreach (var r in positionQuery)
+            {
+                positions[r.entity] = r.component1.value;
+            }
+
+            ComponentQuery<Scale> scaleQuery = new(world);
+            foreach (var r in scaleQuery)
+            {
+                scales[r.entity] = r.component1.value;
+            }
+
+            ComponentQuery<Rotation> rotationQuery = new(world);
+            foreach (var r in rotationQuery)
+            {
+                rotations[r.entity] = r.component1.value;
+            }
+
+            ComponentQuery<EulerAngles> eulerAnglesQuery = new(world);
+            foreach (var r in eulerAnglesQuery)
+            {
+                eulerAngles[r.entity] = r.component1.AsQuaternion();
+            }
 
             //reset entities list
             foreach (List<uint> entities in sortedEntities)
@@ -312,43 +356,18 @@ namespace Transforms.Systems
 
         private readonly Matrix4x4 CalculateLocalToParent(World world, uint entity, bool applyPivot, out Quaternion localRotation)
         {
-            //todo: efficiency: optimize this by fetching all instances of these components ahead of time
-            ref Position position = ref world.TryGetComponent<Position>(entity, out bool hasPosition);
-            ref EulerAngles eulerAngles = ref world.TryGetComponent<EulerAngles>(entity, out bool hasEulerAngles);
-            ref Rotation rotation = ref world.TryGetComponent<Rotation>(entity, out bool hasRotation);
-            ref Scale scale = ref world.TryGetComponent<Scale>(entity, out bool hasScale);
+            ref Vector3 position = ref positions[entity];
+            ref Quaternion eulerAngle = ref eulerAngles[entity];
+            ref Quaternion rotation = ref rotations[entity];
+            ref Vector3 scale = ref scales[entity];
             Matrix4x4 ltp = Matrix4x4.Identity;
             localRotation = Quaternion.Identity;
-            if (hasScale)
-            {
-                ltp *= Matrix4x4.CreateScale(scale.value);
-            }
-
-            if (hasEulerAngles)
-            {
-                localRotation = eulerAngles.AsQuaternion() * localRotation;
-            }
-
-            if (hasRotation)
-            {
-                localRotation = rotation.value * localRotation;
-            }
-
+            ltp *= Matrix4x4.CreateScale(scale);
+            localRotation = eulerAngle * localRotation;
+            localRotation = rotation * localRotation;
             ltp *= Matrix4x4.CreateFromQuaternion(localRotation);
-
-            if (hasPosition)
-            {
-                Vector3 pivot = applyPivot ? pivots[entity] : Vector3.Zero;
-                if (hasScale)
-                {
-                    ltp *= Matrix4x4.CreateTranslation(position.value - pivot * scale.value);
-                }
-                else
-                {
-                    ltp *= Matrix4x4.CreateTranslation(position.value - pivot);
-                }
-            }
-
+            Vector3 pivot = applyPivot ? pivots[entity] : Vector3.Zero;
+            ltp *= Matrix4x4.CreateTranslation(position - pivot * scale);
             return ltp;
         }
     }

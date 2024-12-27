@@ -284,7 +284,8 @@ namespace Transforms.Systems
 
         private readonly void AddMissingComponents(World world)
         {
-            ComponentQuery<IsTransform> transformWithoutLtwQuery = new(world, ComponentType.GetBitSet<LocalToWorld>());
+            Schema schema = world.Schema;
+            ComponentQuery<IsTransform> transformWithoutLtwQuery = new(world, schema.GetComponents<LocalToWorld>());
             foreach (var r in transformWithoutLtwQuery)
             {
                 operation.SelectEntity(r.entity);
@@ -292,11 +293,11 @@ namespace Transforms.Systems
 
             if (operation.Count > 0)
             {
-                operation.AddComponent<LocalToWorld>();
+                operation.AddComponent<LocalToWorld>(schema);
                 operation.ClearSelection();
             }
 
-            ComponentQuery<IsTransform> transformWithoutWorldRotationQuery = new(world, ComponentType.GetBitSet<WorldRotation>());
+            ComponentQuery<IsTransform> transformWithoutWorldRotationQuery = new(world, schema.GetComponents<WorldRotation>());
             foreach (var r in transformWithoutWorldRotationQuery)
             {
                 operation.SelectEntity(r.entity);
@@ -304,7 +305,7 @@ namespace Transforms.Systems
 
             if (operation.HasSelection)
             {
-                operation.AddComponent<WorldRotation>();
+                operation.AddComponent<WorldRotation>(schema);
             }
 
             if (operation.Count > 0)

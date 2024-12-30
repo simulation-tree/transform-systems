@@ -12,15 +12,15 @@ namespace Transforms.Tests
     {
         static TransformTests()
         {
-            TypeLayout.Register<IsTransform>("IsTransform");
-            TypeLayout.Register<Position>("Position");
-            TypeLayout.Register<Rotation>("Rotation");
-            TypeLayout.Register<EulerAngles>("EulerAngles");
-            TypeLayout.Register<WorldRotation>("WorldRotation");
-            TypeLayout.Register<Scale>("Scale");
-            TypeLayout.Register<Anchor>("Anchor");
-            TypeLayout.Register<Pivot>("Pivot");
-            TypeLayout.Register<LocalToWorld>("LocalToWorld");
+            TypeLayout.Register<IsTransform>();
+            TypeLayout.Register<Position>();
+            TypeLayout.Register<Rotation>();
+            TypeLayout.Register<EulerAngles>();
+            TypeLayout.Register<WorldRotation>();
+            TypeLayout.Register<Scale>();
+            TypeLayout.Register<Anchor>();
+            TypeLayout.Register<Pivot>();
+            TypeLayout.Register<LocalToWorld>();
         }
 
         protected override void SetUp()

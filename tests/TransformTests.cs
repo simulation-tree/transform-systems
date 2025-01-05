@@ -1,5 +1,4 @@
-﻿using Simulation.Components;
-using Simulation.Tests;
+﻿using Simulation.Tests;
 using System;
 using System.Numerics;
 using Transforms.Components;
@@ -26,7 +25,7 @@ namespace Transforms.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            world.Schema.RegisterComponent<IsTransform>();
+            world.Schema.RegisterTag<IsTransform>();
             world.Schema.RegisterComponent<Position>();
             world.Schema.RegisterComponent<Rotation>();
             world.Schema.RegisterComponent<EulerAngles>();
@@ -42,18 +41,18 @@ namespace Transforms.Tests
         public void AnchorStuff()
         {
             uint entity = world.CreateEntity();
-            world.AddComponent(entity, new IsTransform());
+            world.AddTag<IsTransform>(entity);
             world.AddComponent(entity, new Scale(1920, 1080, 1));
 
             uint crosshairHorizontal = world.CreateEntity();
             world.SetParent(crosshairHorizontal, entity);
-            world.AddComponent(crosshairHorizontal, new IsTransform());
+            world.AddTag<IsTransform>(crosshairHorizontal);
             world.AddComponent(crosshairHorizontal, Anchor.Centered);
             world.AddComponent(crosshairHorizontal, new Scale(32, 1, 1));
 
             uint crosshairVertical = world.CreateEntity();
             world.SetParent(crosshairVertical, entity);
-            world.AddComponent(crosshairVertical, new IsTransform());
+            world.AddTag<IsTransform>(crosshairVertical);
             world.AddComponent(crosshairVertical, Anchor.Centered);
             world.AddComponent(crosshairVertical, new Scale(1, 32, 1));
 
@@ -76,25 +75,25 @@ namespace Transforms.Tests
         public void DeepAnchoring()
         {
             uint entity = world.CreateEntity();
-            world.AddComponent(entity, new IsTransform());
+            world.AddTag<IsTransform>(entity);
             world.AddComponent(entity, new Scale(1920, 1080, 1));
 
             Anchor anchor = new(new(0f, false), new(0f, false), new(0f, false), new(0.5f, false), new(0.5f, false), new(1f, false));
             uint bottomLeftCanvas = world.CreateEntity();
             world.SetParent(bottomLeftCanvas, entity);
-            world.AddComponent(bottomLeftCanvas, new IsTransform());
+            world.AddTag<IsTransform>(bottomLeftCanvas);
             world.AddComponent(bottomLeftCanvas, anchor);
 
             uint pointInsideCanvas = world.CreateEntity();
             world.SetParent(pointInsideCanvas, bottomLeftCanvas);
-            world.AddComponent(pointInsideCanvas, new IsTransform());
+            world.AddTag<IsTransform>(pointInsideCanvas);
             world.AddComponent(pointInsideCanvas, new Position(32f, 32f, 0));
             world.AddComponent(pointInsideCanvas, new Scale(32, 32, 1));
             world.AddComponent(pointInsideCanvas, Anchor.Centered);
 
             uint copyPoint = world.CreateEntity();
             world.SetParent(copyPoint, pointInsideCanvas);
-            world.AddComponent(copyPoint, new IsTransform());
+            world.AddTag<IsTransform>(copyPoint);
             world.AddComponent(copyPoint, new Anchor(new(0f, false), new(0f, false), new(0f, false), new(1f, false), new(1f, false), new(1f, false)));
 
             simulator.Update(TimeSpan.FromSeconds(0.01f));
@@ -122,12 +121,12 @@ namespace Transforms.Tests
         public void AnchorWithBorder()
         {
             uint canvas = world.CreateEntity();
-            world.AddComponent(canvas, new IsTransform());
+            world.AddTag<IsTransform>(canvas);
             world.AddComponent(canvas, new Scale(1920, 1080, 1));
 
             uint bordered = world.CreateEntity();
             world.SetParent(bordered, canvas);
-            world.AddComponent(bordered, new IsTransform());
+            world.AddTag<IsTransform>(bordered);
             world.AddComponent(bordered, new Scale(1, 1));
             world.AddComponent(bordered, new Anchor(new(10f, true), new(10f, true), default, new(10f, true), new(10f, true), default));
 
@@ -146,7 +145,7 @@ namespace Transforms.Tests
             uint entity = world.CreateEntity();
             world.AddComponent(entity, new Position(2, 2, 6));
             world.AddComponent(entity, new Scale(2, 1, 2));
-            world.AddComponent(entity, new IsTransform());
+            world.AddTag<IsTransform>(entity);
 
             simulator.Update(TimeSpan.FromSeconds(0.01f));
 
@@ -162,12 +161,12 @@ namespace Transforms.Tests
             world.AddComponent(parent, new Position(5, 0, 0));
             world.AddComponent(parent, EulerAngles.CreateFromDegrees(0f, 90f, 0f));
             world.AddComponent(parent, new Scale(2, 2, 2));
-            world.AddComponent(parent, new IsTransform());
+            world.AddTag<IsTransform>(parent);
 
             uint child = world.CreateEntity();
             world.SetParent(child, parent);
             world.AddComponent(child, new Position(0, 0, 2));
-            world.AddComponent(child, new IsTransform());
+            world.AddTag<IsTransform>(child);
 
             Assert.That(world.GetParent(child), Is.EqualTo(parent));
             simulator.Update(TimeSpan.FromSeconds(0.01f));
@@ -187,7 +186,7 @@ namespace Transforms.Tests
         {
             Quaternion sampleRotation = Quaternion.CreateFromYawPitchRoll(0.5f, 0.5f, 0.5f);
             uint entity = world.CreateEntity();
-            world.AddComponent(entity, new IsTransform());
+            world.AddTag<IsTransform>(entity);
             world.AddComponent(entity, new Rotation(sampleRotation));
 
             simulator.Update(TimeSpan.FromSeconds(0.01f));
@@ -202,12 +201,12 @@ namespace Transforms.Tests
             Quaternion localRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI * 0.25f);
 
             uint parent = world.CreateEntity();
-            world.AddComponent(parent, new IsTransform());
+            world.AddTag<IsTransform>(parent);
             world.AddComponent(parent, new Rotation(localRotation));
 
             uint child = world.CreateEntity();
             world.SetParent(child, parent);
-            world.AddComponent(child, new IsTransform());
+            world.AddTag<IsTransform>(child);
             world.AddComponent(child, new Rotation(localRotation));
 
             simulator.Update(TimeSpan.FromSeconds(0.01f));

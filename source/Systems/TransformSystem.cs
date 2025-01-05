@@ -254,42 +254,57 @@ namespace Transforms.Systems
 
         private readonly void FindTransforms(World world)
         {
-            ComponentQuery<IsTransform> transformQuery = new(world);
-            foreach (var r in transformQuery)
+            Dictionary<Definition, Chunk> chunks = world.Chunks;
+            Schema schema = world.Schema;
+            foreach (Definition key in chunks.Keys)
             {
-                uint entity = r.entity;
-                uint parent = world.GetParent(entity);
-                parentEntities[entity] = parent;
-                ltwValues[entity] = CalculateLocalToParent(world, entity, !hasAnchors[entity], out Quaternion localRotation);
-                worldRotations[entity] = localRotation;
-
-                //calculate how deep the entity is
-                uint depth = 0;
-                uint current = parent;
-                while (current != default)
+                if (key.ContainsTag<IsTransform>(schema))
                 {
-                    depth++;
-                    current = world.GetParent(current);
-                }
+                    Chunk chunk = chunks[key];
+                    foreach (uint entity in chunk.Entities)
+                    {
+                        uint parent = world.GetParent(entity);
+                        parentEntities[entity] = parent;
+                        ltwValues[entity] = CalculateLocalToParent(world, entity, !hasAnchors[entity], out Quaternion localRotation);
+                        worldRotations[entity] = localRotation;
 
-                while (sortedEntities.Count <= depth)
-                {
-                    sortedEntities.Add(new());
-                }
+                        //calculate how deep the entity is
+                        uint depth = 0;
+                        uint current = parent;
+                        while (current != default)
+                        {
+                            depth++;
+                            current = world.GetParent(current);
+                        }
 
-                //put the entity into a list located at the index, where the index is the depth
-                sortedEntities[depth].Add(entity);
+                        while (sortedEntities.Count <= depth)
+                        {
+                            sortedEntities.Add(new());
+                        }
+
+                        //put the entity into a list located at the index, where the index is the depth
+                        sortedEntities[depth].Add(entity);
+                    }
+                }
             }
         }
 
         private readonly void AddMissingComponents(World world)
         {
             Schema schema = world.Schema;
-            ComponentQuery<IsTransform> transformWithoutLtwQuery = new(world);
-            transformWithoutLtwQuery.ExcludeComponent<LocalToWorld>();
-            foreach (var r in transformWithoutLtwQuery)
+            Dictionary<Definition, Chunk> chunks = world.Chunks;
+
+            //go through all entities without a ltw component
+            foreach (Definition key in chunks.Keys)
             {
-                operation.SelectEntity(r.entity);
+                if (key.ContainsTag<IsTransform>(schema) && !key.ContainsComponent<LocalToWorld>(schema))
+                {
+                    Chunk chunk = chunks[key];
+                    foreach (uint entity in chunk.Entities)
+                    {
+                        operation.SelectEntity(entity);
+                    }
+                }
             }
 
             if (operation.Count > 0)
@@ -298,11 +313,17 @@ namespace Transforms.Systems
                 operation.ClearSelection();
             }
 
-            ComponentQuery<IsTransform> transformWithoutWorldRotationQuery = new(world);
-            transformWithoutWorldRotationQuery.ExcludeComponent<WorldRotation>();
-            foreach (var r in transformWithoutWorldRotationQuery)
+            //go through all without a world rotation component
+            foreach (Definition key in chunks.Keys)
             {
-                operation.SelectEntity(r.entity);
+                if (key.ContainsTag<IsTransform>(schema) && !key.ContainsComponent<WorldRotation>(schema))
+                {
+                    Chunk chunk = chunks[key];
+                    foreach (uint entity in chunk.Entities)
+                    {
+                        operation.SelectEntity(entity);
+                    }
+                }
             }
 
             if (operation.HasSelection)
@@ -319,10 +340,11 @@ namespace Transforms.Systems
 
         private readonly void FindAnchors(World world)
         {
-            ComponentQuery<IsTransform, Anchor> anchorQuery = new(world);
+            ComponentQuery<Anchor> anchorQuery = new(world);
+            anchorQuery.IncludeTag<IsTransform>();
             foreach (var r in anchorQuery)
             {
-                ref Anchor anchor = ref r.component2;
+                ref Anchor anchor = ref r.component1;
                 anchors[r.entity] = anchor;
                 hasAnchors[r.entity] = true;
             }
@@ -330,17 +352,19 @@ namespace Transforms.Systems
 
         private readonly void FindPivots(World world)
         {
-            ComponentQuery<IsTransform, Pivot> pivotQuery = new(world);
+            ComponentQuery<Pivot> pivotQuery = new(world);
+            pivotQuery.IncludeTag<IsTransform>();
             foreach (var r in pivotQuery)
             {
-                ref Pivot pivot = ref r.component2;
+                ref Pivot pivot = ref r.component1;
                 pivots[r.entity] = pivot.value;
             }
         }
 
         private readonly void ApplyValues(World world)
         {
-            ComponentQuery<LocalToWorld, IsTransform> ltwQuery = new(world);
+            ComponentQuery<LocalToWorld> ltwQuery = new(world);
+            ltwQuery.IncludeTag<IsTransform>();
             foreach (var r in ltwQuery)
             {
                 ref LocalToWorld ltw = ref r.component1;
@@ -348,7 +372,8 @@ namespace Transforms.Systems
                 ltw.value = calculated;
             }
 
-            ComponentQuery<WorldRotation, IsTransform> worldRotationQuery = new(world);
+            ComponentQuery<WorldRotation> worldRotationQuery = new(world);
+            worldRotationQuery.IncludeTag<IsTransform>();
             foreach (var r in worldRotationQuery)
             {
                 ref WorldRotation worldRotation = ref r.component1;

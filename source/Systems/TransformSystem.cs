@@ -14,8 +14,8 @@ namespace Transforms.Systems
         private readonly Array<Vector3> pivots;
         private readonly Array<Anchor> anchors;
         private readonly Array<bool> hasAnchors;
-        private readonly Array<Matrix4x4> ltwValues;
-        private readonly Array<Matrix4x4> anchoredLtwValues;
+        private readonly Array<LocalToWorld> ltwValues;
+        private readonly Array<LocalToWorld> anchoredLtwValues;
         private readonly Array<Quaternion> worldRotations;
         private readonly List<List<uint>> sortedEntities;
         private readonly Operation operation;
@@ -100,8 +100,8 @@ namespace Transforms.Systems
 
             //clear state
             parentEntities.Clear();
-            ltwValues.Clear();
-            worldRotations.Clear();
+            ltwValues.Fill(LocalToWorld.Default);
+            worldRotations.Fill(Quaternion.Identity);
             anchoredLtwValues.Clear();
             pivots.Clear();
             hasAnchors.Clear();
@@ -153,11 +153,11 @@ namespace Transforms.Systems
                 foreach (uint entity in entities)
                 {
                     uint parent = parentEntities[entity];
-                    ref Matrix4x4 ltw = ref ltwValues[entity];
+                    ref LocalToWorld ltw = ref ltwValues[entity];
                     ref Quaternion worldRotation = ref worldRotations[entity];
                     if (parent != default)
                     {
-                        LocalToWorld parentLtw = new(ltwValues[parent]);
+                        LocalToWorld parentLtw = ltwValues[parent];
                         Quaternion parentWorldRotation = worldRotations[parent];
                         if (hasAnchors[entity])
                         {
@@ -229,16 +229,16 @@ namespace Transforms.Systems
                             }
 
                             Matrix4x4 anchorLtw = Matrix4x4.CreateScale(anchorScale) * Matrix4x4.CreateTranslation(anchorPosition);
-                            ltw *= anchorLtw;
+                            ltw.value *= anchorLtw;
 
                             //affect ltw by pivot
                             Vector3 anchorPivot = pivots[entity];
-                            Vector3 pivotOffset = anchorPivot * new LocalToWorld(ltw).Scale;
-                            ltw *= Matrix4x4.CreateTranslation(-pivotOffset);
+                            Vector3 pivotOffset = anchorPivot * ltw.Scale;
+                            ltw.value *= Matrix4x4.CreateTranslation(-pivotOffset);
                         }
                         else
                         {
-                            ltw *= parentLtw.value;
+                            ltw.value *= parentLtw.value;
                         }
 
                         worldRotation = parentWorldRotation * worldRotation;
@@ -263,9 +263,11 @@ namespace Transforms.Systems
                     Chunk chunk = chunks[key];
                     foreach (uint entity in chunk.Entities)
                     {
+                        Entity e = new(world, entity);
                         uint parent = world.GetParent(entity);
                         parentEntities[entity] = parent;
-                        ltwValues[entity] = CalculateLocalToParent(world, entity, !hasAnchors[entity], out Quaternion localRotation);
+                        LocalToWorld ltp = CalculateLocalToParent(world, entity, !hasAnchors[entity], out Quaternion localRotation);
+                        ltwValues[entity] = ltp;
                         worldRotations[entity] = localRotation;
 
                         //calculate how deep the entity is
@@ -368,8 +370,8 @@ namespace Transforms.Systems
             foreach (var r in ltwQuery)
             {
                 ref LocalToWorld ltw = ref r.component1;
-                Matrix4x4 calculated = ltwValues[r.entity];
-                ltw.value = calculated;
+                LocalToWorld calculated = ltwValues[r.entity];
+                ltw.value = calculated.value;
             }
 
             ComponentQuery<WorldRotation> worldRotationQuery = new(world);
@@ -382,7 +384,7 @@ namespace Transforms.Systems
             }
         }
 
-        private readonly Matrix4x4 CalculateLocalToParent(World world, uint entity, bool applyPivot, out Quaternion localRotation)
+        private readonly LocalToWorld CalculateLocalToParent(World world, uint entity, bool applyPivot, out Quaternion localRotation)
         {
             ref Vector3 position = ref positions[entity];
             ref Quaternion eulerAngle = ref eulerAngles[entity];
@@ -396,7 +398,7 @@ namespace Transforms.Systems
             ltp *= Matrix4x4.CreateFromQuaternion(localRotation);
             Vector3 pivot = applyPivot ? pivots[entity] : Vector3.Zero;
             ltp *= Matrix4x4.CreateTranslation(position - pivot * scale);
-            return ltp;
+            return new(ltp);
         }
     }
 }

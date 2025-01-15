@@ -258,7 +258,7 @@ namespace Transforms.Systems
             Schema schema = world.Schema;
             foreach (Definition key in chunks.Keys)
             {
-                if (key.ContainsTag<IsTransform>(schema))
+                if (key.ContainsTag<IsTransform>(schema)) //todo: replace this with a query
                 {
                     Chunk chunk = chunks[key];
                     foreach (uint entity in chunk.Entities)

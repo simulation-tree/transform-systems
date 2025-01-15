@@ -3,7 +3,7 @@ using System;
 using System.Numerics;
 using Transforms.Components;
 using Transforms.Systems;
-using Worlds;
+using Types;
 
 namespace Transforms.Tests
 {

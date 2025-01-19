@@ -343,7 +343,7 @@ namespace Transforms.Systems
         private readonly void FindAnchors(World world)
         {
             ComponentQuery<Anchor> anchorQuery = new(world);
-            anchorQuery.IncludeTag<IsTransform>();
+            anchorQuery.RequireTag<IsTransform>();
             foreach (var r in anchorQuery)
             {
                 ref Anchor anchor = ref r.component1;
@@ -355,7 +355,7 @@ namespace Transforms.Systems
         private readonly void FindPivots(World world)
         {
             ComponentQuery<Pivot> pivotQuery = new(world);
-            pivotQuery.IncludeTag<IsTransform>();
+            pivotQuery.RequireTag<IsTransform>();
             foreach (var r in pivotQuery)
             {
                 ref Pivot pivot = ref r.component1;
@@ -366,7 +366,7 @@ namespace Transforms.Systems
         private readonly void ApplyValues(World world)
         {
             ComponentQuery<LocalToWorld> ltwQuery = new(world);
-            ltwQuery.IncludeTag<IsTransform>();
+            ltwQuery.RequireTag<IsTransform>();
             foreach (var r in ltwQuery)
             {
                 ref LocalToWorld ltw = ref r.component1;
@@ -375,7 +375,7 @@ namespace Transforms.Systems
             }
 
             ComponentQuery<WorldRotation> worldRotationQuery = new(world);
-            worldRotationQuery.IncludeTag<IsTransform>();
+            worldRotationQuery.RequireTag<IsTransform>();
             foreach (var r in worldRotationQuery)
             {
                 ref WorldRotation worldRotation = ref r.component1;

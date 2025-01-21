@@ -9,7 +9,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\simulation\source\Simulation.csproj" />
+		<ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj" />
 		<ProjectReference Include="..\..\transforms\source\Transforms.csproj" />
 		<ProjectReference Include="..\..\unmanaged\source\Unmanaged.csproj" />
 		<ProjectReference Include="..\..\simulation\generator\Simulation.Generator.csproj">

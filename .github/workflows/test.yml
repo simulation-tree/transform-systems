@@ -62,6 +62,13 @@ jobs:
           repository: game-simulations/simulation
           token: ${{ secrets.PAT }}
           path: simulation
+
+      - name: Checkout `transforms`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/transforms
+          token: ${{ secrets.PAT }}
+          path: transforms
       
       - name: Setup dotnet
         uses: actions/setup-dotnet@v4

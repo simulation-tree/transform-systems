@@ -1,42 +1,11 @@
-﻿using Simulation.Tests;
-using System;
+﻿using System;
 using System.Numerics;
 using Transforms.Components;
-using Transforms.Systems;
-using Types;
 
 namespace Transforms.Tests
 {
-    public class TransformTests : SimulationTests
+    public class TransformEntityTests : TransformSystemsTests
     {
-        static TransformTests()
-        {
-            TypeLayout.Register<IsTransform>();
-            TypeLayout.Register<Position>();
-            TypeLayout.Register<Rotation>();
-            TypeLayout.Register<EulerAngles>();
-            TypeLayout.Register<WorldRotation>();
-            TypeLayout.Register<Scale>();
-            TypeLayout.Register<Anchor>();
-            TypeLayout.Register<Pivot>();
-            TypeLayout.Register<LocalToWorld>();
-        }
-
-        protected override void SetUp()
-        {
-            base.SetUp();
-            world.Schema.RegisterTag<IsTransform>();
-            world.Schema.RegisterComponent<Position>();
-            world.Schema.RegisterComponent<Rotation>();
-            world.Schema.RegisterComponent<EulerAngles>();
-            world.Schema.RegisterComponent<WorldRotation>();
-            world.Schema.RegisterComponent<Scale>();
-            world.Schema.RegisterComponent<Anchor>();
-            world.Schema.RegisterComponent<Pivot>();
-            world.Schema.RegisterComponent<LocalToWorld>();
-            simulator.AddSystem<TransformSystem>();
-        }
-
         [Test]
         public void AnchorStuff()
         {

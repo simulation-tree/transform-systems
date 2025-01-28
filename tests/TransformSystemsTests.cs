@@ -9,7 +9,7 @@ namespace Transforms.Tests
     {
         static TransformSystemsTests()
         {
-            TypeRegistry.Load<Transforms.TypeBank>();
+            TypeRegistry.Load<TransformsTypeBank>();
         }
 
         protected override void SetUp()
@@ -21,7 +21,7 @@ namespace Transforms.Tests
         protected override Schema CreateSchema()
         {
             Schema schema = base.CreateSchema();
-            schema.Load<Transforms.SchemaBank>();
+            schema.Load<TransformsSchemaBank>();
             return schema;
         }
     }

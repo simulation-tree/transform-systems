@@ -4,7 +4,7 @@ using Transforms.Components;
 
 namespace Transforms.Tests
 {
-    public class TransformEntityTests : TransformSystemsTests
+    public class TransformingTests : TransformSystemsTests
     {
         [Test]
         public void AnchorStuff()

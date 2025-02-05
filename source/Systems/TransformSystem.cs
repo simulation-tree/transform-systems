@@ -141,10 +141,11 @@ namespace Transforms.Systems
                 entities.Clear();
             }
 
+            TagType transformTag = world.Schema.GetTag<IsTransform>();
             FindPivots(world);
             FindAnchors(world);
-            AddMissingComponents(world);
-            FindTransforms(world);
+            AddMissingComponents(world, transformTag);
+            FindTransforms(world, transformTag);
 
             //calculate ltw in descending order (roots towards leafs)
             //where each entity list is descending in depth
@@ -252,15 +253,13 @@ namespace Transforms.Systems
             ApplyValues(world);
         }
 
-        private readonly void FindTransforms(World world)
+        private readonly void FindTransforms(World world, TagType transformTag)
         {
-            Dictionary<Definition, Chunk> chunks = world.Chunks;
-            Schema schema = world.Schema;
-            foreach (Definition key in chunks.Keys)
+            foreach (Chunk chunk in world.Chunks)
             {
-                if (key.ContainsTag<IsTransform>(schema)) //todo: replace this with a query
+                Definition key = chunk.Definition;
+                if (key.Contains(transformTag)) //todo: replace this with a query
                 {
-                    Chunk chunk = chunks[key];
                     foreach (uint entity in chunk.Entities)
                     {
                         Entity e = new(world, entity);
@@ -291,17 +290,17 @@ namespace Transforms.Systems
             }
         }
 
-        private readonly void AddMissingComponents(World world)
+        private readonly void AddMissingComponents(World world, TagType transformTag)
         {
-            Schema schema = world.Schema;
-            Dictionary<Definition, Chunk> chunks = world.Chunks;
-
             //go through all entities without a ltw component
-            foreach (Definition key in chunks.Keys)
+            Schema schema = world.Schema;
+            ComponentType ltwComponent = schema.GetComponent<LocalToWorld>();
+            ComponentType worldRotationComponent = schema.GetComponent<WorldRotation>();
+            foreach (Chunk chunk in world.Chunks)
             {
-                if (key.ContainsTag<IsTransform>(schema) && !key.ContainsComponent<LocalToWorld>(schema))
+                Definition key = chunk.Definition;
+                if (key.Contains(transformTag) && !key.Contains(ltwComponent))
                 {
-                    Chunk chunk = chunks[key];
                     foreach (uint entity in chunk.Entities)
                     {
                         operation.SelectEntity(entity);
@@ -316,11 +315,11 @@ namespace Transforms.Systems
             }
 
             //go through all without a world rotation component
-            foreach (Definition key in chunks.Keys)
+            foreach (Chunk chunk in world.Chunks)
             {
-                if (key.ContainsTag<IsTransform>(schema) && !key.ContainsComponent<WorldRotation>(schema))
+                Definition key = chunk.Definition;
+                if (key.Contains(transformTag) && !key.Contains(worldRotationComponent))
                 {
-                    Chunk chunk = chunks[key];
                     foreach (uint entity in chunk.Entities)
                     {
                         operation.SelectEntity(entity);

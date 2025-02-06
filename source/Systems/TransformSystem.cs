@@ -288,7 +288,6 @@ namespace Transforms.Systems
                 {
                     foreach (uint entity in chunk.Entities)
                     {
-                        Entity e = new(world, entity);
                         uint parent = world.GetParent(entity);
                         parentEntities[entity] = parent;
                         LocalToWorld ltp = CalculateLocalToParent(world, entity, !hasAnchors[entity], out Quaternion localRotation);

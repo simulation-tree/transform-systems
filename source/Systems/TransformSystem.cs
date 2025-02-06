@@ -24,7 +24,7 @@ namespace Transforms.Systems
         private readonly Array<Quaternion> rotations;
         private readonly Array<Quaternion> eulerAngles;
 
-        public TransformSystem()
+        private TransformSystem(World world)
         {
             parentEntities = new();
             pivots = new();
@@ -45,7 +45,7 @@ namespace Transforms.Systems
         {
             if (systemContainer.World == world)
             {
-                systemContainer.Write(new TransformSystem());
+                systemContainer.Write(new TransformSystem(world));
             }
         }
 
@@ -81,6 +81,16 @@ namespace Transforms.Systems
 
         private readonly void Update(World world)
         {
+            ComponentType positionComponent = world.Schema.GetComponent<Position>();
+            ComponentType scaleComponent = world.Schema.GetComponent<Scale>();
+            ComponentType rotationComponent = world.Schema.GetComponent<Rotation>();
+            ComponentType eulerAnglesComponent = world.Schema.GetComponent<EulerAngles>();
+            ComponentType anchorComponent = world.Schema.GetComponent<Anchor>();
+            ComponentType pivotComponent = world.Schema.GetComponent<Pivot>();
+            ComponentType ltwComponent = world.Schema.GetComponent<LocalToWorld>();
+            ComponentType worldRotationComponent = world.Schema.GetComponent<WorldRotation>();
+            TagType transformTag = world.Schema.GetTag<IsTransform>();
+
             //ensure capacity is met
             uint capacity = Allocations.GetNextPowerOf2(world.MaxEntityValue + 1);
             if (ltwValues.Length < capacity)
@@ -101,38 +111,55 @@ namespace Transforms.Systems
             //clear state
             parentEntities.Clear();
             ltwValues.Fill(LocalToWorld.Default);
-            worldRotations.Fill(Quaternion.Identity);
+            worldRotations.Fill(Rotation.Default.value);
             anchoredLtwValues.Clear();
             pivots.Clear();
             hasAnchors.Clear();
             anchors.Clear();
             positions.Clear();
-            scales.Fill(Vector3.One);
-            rotations.Fill(Quaternion.Identity);
-            eulerAngles.Fill(Quaternion.Identity);
+            scales.Fill(Scale.Default.value);
+            rotations.Fill(Rotation.Default.value);
+            eulerAngles.Fill(Rotation.Default.value);
 
-            ComponentQuery<Position> positionQuery = new(world);
-            foreach (var r in positionQuery)
+            //collect values
+            foreach (Chunk chunk in world.Chunks)
             {
-                positions[r.entity] = r.component1.value;
-            }
+                Definition definition = chunk.Definition;
+                bool containsPosition = definition.ComponentTypes.Contains(positionComponent);
+                bool containsScale = definition.ComponentTypes.Contains(scaleComponent);
+                bool containsRotation = definition.ComponentTypes.Contains(rotationComponent);
+                bool containsEulerAngles = definition.ComponentTypes.Contains(eulerAnglesComponent);
+                if (containsPosition || containsScale || containsRotation || containsEulerAngles)
+                {
+                    USpan<uint> entities = chunk.Entities;
+                    USpan<Position> positionComponents = containsPosition ? chunk.GetComponents<Position>(positionComponent) : default;
+                    USpan<Scale> scaleComponents = containsScale ? chunk.GetComponents<Scale>(scaleComponent) : default;
+                    USpan<Rotation> rotationComponents = containsRotation ? chunk.GetComponents<Rotation>(rotationComponent) : default;
+                    USpan<EulerAngles> eulerAngleComponents = containsEulerAngles ? chunk.GetComponents<EulerAngles>(eulerAnglesComponent) : default;
+                    for (uint i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        if (containsPosition)
+                        {
+                            positions[entity] = positionComponents[i].value;
+                        }
 
-            ComponentQuery<Scale> scaleQuery = new(world);
-            foreach (var r in scaleQuery)
-            {
-                scales[r.entity] = r.component1.value;
-            }
+                        if (containsScale)
+                        {
+                            scales[entity] = scaleComponents[i].value;
+                        }
 
-            ComponentQuery<Rotation> rotationQuery = new(world);
-            foreach (var r in rotationQuery)
-            {
-                rotations[r.entity] = r.component1.value;
-            }
+                        if (containsRotation)
+                        {
+                            rotations[entity] = rotationComponents[i].value;
+                        }
 
-            ComponentQuery<EulerAngles> eulerAnglesQuery = new(world);
-            foreach (var r in eulerAnglesQuery)
-            {
-                eulerAngles[r.entity] = r.component1.AsQuaternion();
+                        if (containsEulerAngles)
+                        {
+                            eulerAngles[entity] = eulerAngleComponents[i].AsQuaternion();
+                        }
+                    }
+                }
             }
 
             //reset entities list
@@ -141,9 +168,8 @@ namespace Transforms.Systems
                 entities.Clear();
             }
 
-            TagType transformTag = world.Schema.GetTag<IsTransform>();
-            FindPivots(world);
-            FindAnchors(world);
+            FindPivots(world, pivotComponent, transformTag);
+            FindAnchors(world, anchorComponent, transformTag);
             AddMissingComponents(world, transformTag);
             FindTransforms(world, transformTag);
 
@@ -250,7 +276,7 @@ namespace Transforms.Systems
             }
 
             //apply values
-            ApplyValues(world);
+            ApplyValues(world, ltwComponent, worldRotationComponent, transformTag);
         }
 
         private readonly void FindTransforms(World world, TagType transformTag)
@@ -339,47 +365,60 @@ namespace Transforms.Systems
             }
         }
 
-        private readonly void FindAnchors(World world)
+        private readonly void FindAnchors(World world, ComponentType anchorComponent, TagType transformTag)
         {
-            ComponentQuery<Anchor> anchorQuery = new(world);
-            anchorQuery.RequireTag<IsTransform>();
-            foreach (var r in anchorQuery)
+            foreach (Chunk chunk in world.Chunks)
             {
-                ref Anchor anchor = ref r.component1;
-                anchors[r.entity] = anchor;
-                hasAnchors[r.entity] = true;
+                Definition key = chunk.Definition;
+                if (key.Contains(anchorComponent) && key.Contains(transformTag))
+                {
+                    USpan<uint> entities = chunk.Entities;
+                    USpan<Anchor> components = chunk.GetComponents<Anchor>(anchorComponent);
+                    for (uint i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        anchors[entity] = components[i];
+                        hasAnchors[entity] = true;
+                    }
+                }
             }
         }
 
-        private readonly void FindPivots(World world)
+        private readonly void FindPivots(World world, ComponentType pivotComponent, TagType transformTag)
         {
-            ComponentQuery<Pivot> pivotQuery = new(world);
-            pivotQuery.RequireTag<IsTransform>();
-            foreach (var r in pivotQuery)
+            foreach (Chunk chunk in world.Chunks)
             {
-                ref Pivot pivot = ref r.component1;
-                pivots[r.entity] = pivot.value;
+                Definition key = chunk.Definition;
+                if (key.Contains(pivotComponent) && key.Contains(transformTag))
+                {
+                    USpan<uint> entities = chunk.Entities;
+                    USpan<Pivot> components = chunk.GetComponents<Pivot>(pivotComponent);
+                    for (uint i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        pivots[entity] = components[i].value;
+                    }
+                }
             }
         }
 
-        private readonly void ApplyValues(World world)
+        private readonly void ApplyValues(World world, ComponentType ltwComponent, ComponentType worldRotationComponent, TagType transformTag)
         {
-            ComponentQuery<LocalToWorld> ltwQuery = new(world);
-            ltwQuery.RequireTag<IsTransform>();
-            foreach (var r in ltwQuery)
+            foreach (Chunk chunk in world.Chunks)
             {
-                ref LocalToWorld ltw = ref r.component1;
-                LocalToWorld calculated = ltwValues[r.entity];
-                ltw.value = calculated.value;
-            }
-
-            ComponentQuery<WorldRotation> worldRotationQuery = new(world);
-            worldRotationQuery.RequireTag<IsTransform>();
-            foreach (var r in worldRotationQuery)
-            {
-                ref WorldRotation worldRotation = ref r.component1;
-                Quaternion calculated = worldRotations[r.entity];
-                worldRotation.value = calculated;
+                Definition key = chunk.Definition;
+                if (key.Contains(transformTag) && key.Contains(ltwComponent) && key.Contains(worldRotationComponent))
+                {
+                    USpan<uint> entities = chunk.Entities;
+                    USpan<LocalToWorld> ltwComponents = chunk.GetComponents<LocalToWorld>(ltwComponent);
+                    USpan<WorldRotation> worldRotationComponents = chunk.GetComponents<WorldRotation>(worldRotationComponent);
+                    for (uint i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        ltwComponents[i] = ltwValues[entity];
+                        worldRotationComponents[i] = new(worldRotations[entity]);
+                    }
+                }
             }
         }
 

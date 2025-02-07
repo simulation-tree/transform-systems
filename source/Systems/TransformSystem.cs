@@ -170,7 +170,7 @@ namespace Transforms.Systems
 
             FindPivots(world, pivotComponent, transformTag);
             FindAnchors(world, anchorComponent, transformTag);
-            AddMissingComponents(world, transformTag);
+            AddMissingComponents(world, transformTag, ltwComponent, worldRotationComponent);
             FindTransforms(world, transformTag);
 
             //calculate ltw in descending order (roots towards leafs)
@@ -315,12 +315,10 @@ namespace Transforms.Systems
             }
         }
 
-        private readonly void AddMissingComponents(World world, TagType transformTag)
+        private readonly void AddMissingComponents(World world, TagType transformTag, ComponentType ltwComponent, ComponentType worldRotationComponent)
         {
             //go through all entities without a ltw component, and add it
             Schema schema = world.Schema;
-            ComponentType ltwComponent = schema.GetComponent<LocalToWorld>();
-            ComponentType worldRotationComponent = schema.GetComponent<WorldRotation>();
             foreach (Chunk chunk in world.Chunks)
             {
                 Definition definition = chunk.Definition;

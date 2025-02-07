@@ -317,49 +317,45 @@ namespace Transforms.Systems
 
         private readonly void AddMissingComponents(World world, TagType transformTag)
         {
-            //go through all entities without a ltw component
+            //go through all entities without a ltw component, and add it
             Schema schema = world.Schema;
             ComponentType ltwComponent = schema.GetComponent<LocalToWorld>();
             ComponentType worldRotationComponent = schema.GetComponent<WorldRotation>();
             foreach (Chunk chunk in world.Chunks)
             {
-                Definition key = chunk.Definition;
-                if (key.Contains(transformTag) && !key.Contains(ltwComponent))
+                Definition definition = chunk.Definition;
+                if (definition.Contains(transformTag) && !definition.Contains(ltwComponent))
                 {
-                    foreach (uint entity in chunk.Entities)
-                    {
-                        operation.SelectEntity(entity);
-                    }
+                    operation.SelectEntities(chunk.Entities);
                 }
             }
 
             if (operation.Count > 0)
             {
-                operation.AddComponent<LocalToWorld>(schema);
+                operation.AddComponent<LocalToWorld>();
                 operation.ClearSelection();
             }
 
-            //go through all without a world rotation component
+            //go through all without a world rotation component, and add that too
+            bool selectedAny = false;
             foreach (Chunk chunk in world.Chunks)
             {
-                Definition key = chunk.Definition;
-                if (key.Contains(transformTag) && !key.Contains(worldRotationComponent))
+                Definition definition = chunk.Definition;
+                if (definition.Contains(transformTag) && !definition.Contains(worldRotationComponent))
                 {
-                    foreach (uint entity in chunk.Entities)
-                    {
-                        operation.SelectEntity(entity);
-                    }
+                    operation.SelectEntities(chunk.Entities);
+                    selectedAny = true;
                 }
             }
 
-            if (operation.HasSelection)
+            if (selectedAny)
             {
-                operation.AddComponent<WorldRotation>(schema);
+                operation.AddComponent<WorldRotation>();
             }
 
             if (operation.Count > 0)
             {
-                world.Perform(operation);
+                operation.Perform(world);
                 operation.Clear();
             }
         }

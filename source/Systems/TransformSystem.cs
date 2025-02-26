@@ -1,4 +1,4 @@
-﻿using Collections;
+﻿using Collections.Generic;
 using Simulation;
 using System;
 using System.Numerics;

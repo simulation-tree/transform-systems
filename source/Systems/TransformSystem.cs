@@ -81,15 +81,15 @@ namespace Transforms.Systems
 
         private readonly void Update(World world)
         {
-            ComponentType positionComponent = world.Schema.GetComponent<Position>();
-            ComponentType scaleComponent = world.Schema.GetComponent<Scale>();
-            ComponentType rotationComponent = world.Schema.GetComponent<Rotation>();
-            ComponentType eulerAnglesComponent = world.Schema.GetComponent<EulerAngles>();
-            ComponentType anchorComponent = world.Schema.GetComponent<Anchor>();
-            ComponentType pivotComponent = world.Schema.GetComponent<Pivot>();
-            ComponentType ltwComponent = world.Schema.GetComponent<LocalToWorld>();
-            ComponentType worldRotationComponent = world.Schema.GetComponent<WorldRotation>();
-            TagType transformTag = world.Schema.GetTag<IsTransform>();
+            ComponentType positionComponent = world.Schema.GetComponentType<Position>();
+            ComponentType scaleComponent = world.Schema.GetComponentType<Scale>();
+            ComponentType rotationComponent = world.Schema.GetComponentType<Rotation>();
+            ComponentType eulerAnglesComponent = world.Schema.GetComponentType<EulerAngles>();
+            ComponentType anchorComponent = world.Schema.GetComponentType<Anchor>();
+            ComponentType pivotComponent = world.Schema.GetComponentType<Pivot>();
+            ComponentType ltwComponent = world.Schema.GetComponentType<LocalToWorld>();
+            ComponentType worldRotationComponent = world.Schema.GetComponentType<WorldRotation>();
+            TagType transformTag = world.Schema.GetTagType<IsTransform>();
 
             //ensure capacity is met
             uint capacity = Allocations.GetNextPowerOf2(world.MaxEntityValue + 1);
@@ -284,7 +284,7 @@ namespace Transforms.Systems
             foreach (Chunk chunk in world.Chunks)
             {
                 Definition key = chunk.Definition;
-                if (key.Contains(transformTag)) //todo: replace this with a query
+                if (key.ContainsTag(transformTag)) //todo: replace this with a query
                 {
                     foreach (uint entity in chunk.Entities)
                     {
@@ -322,7 +322,7 @@ namespace Transforms.Systems
             foreach (Chunk chunk in world.Chunks)
             {
                 Definition definition = chunk.Definition;
-                if (definition.Contains(transformTag) && !definition.Contains(ltwComponent))
+                if (definition.ContainsTag(transformTag) && !definition.ContainsComponent(ltwComponent))
                 {
                     operation.SelectEntities(chunk.Entities);
                 }
@@ -339,7 +339,7 @@ namespace Transforms.Systems
             foreach (Chunk chunk in world.Chunks)
             {
                 Definition definition = chunk.Definition;
-                if (definition.Contains(transformTag) && !definition.Contains(worldRotationComponent))
+                if (definition.ContainsTag(transformTag) && !definition.ContainsComponent(worldRotationComponent))
                 {
                     operation.SelectEntities(chunk.Entities);
                     selectedAny = true;
@@ -363,7 +363,7 @@ namespace Transforms.Systems
             foreach (Chunk chunk in world.Chunks)
             {
                 Definition key = chunk.Definition;
-                if (key.Contains(anchorComponent) && key.Contains(transformTag))
+                if (key.ContainsComponent(anchorComponent) && key.ContainsTag(transformTag))
                 {
                     USpan<uint> entities = chunk.Entities;
                     USpan<Anchor> components = chunk.GetComponents<Anchor>(anchorComponent);
@@ -382,7 +382,7 @@ namespace Transforms.Systems
             foreach (Chunk chunk in world.Chunks)
             {
                 Definition key = chunk.Definition;
-                if (key.Contains(pivotComponent) && key.Contains(transformTag))
+                if (key.ContainsComponent(pivotComponent) && key.ContainsTag(transformTag))
                 {
                     USpan<uint> entities = chunk.Entities;
                     USpan<Pivot> components = chunk.GetComponents<Pivot>(pivotComponent);
@@ -400,7 +400,7 @@ namespace Transforms.Systems
             foreach (Chunk chunk in world.Chunks)
             {
                 Definition key = chunk.Definition;
-                if (key.Contains(transformTag) && key.Contains(ltwComponent) && key.Contains(worldRotationComponent))
+                if (key.ContainsTag(transformTag) && key.ContainsComponent(ltwComponent) && key.ContainsComponent(worldRotationComponent))
                 {
                     USpan<uint> entities = chunk.Entities;
                     USpan<LocalToWorld> ltwComponents = chunk.GetComponents<LocalToWorld>(ltwComponent);

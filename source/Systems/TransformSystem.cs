@@ -92,7 +92,7 @@ namespace Transforms.Systems
             TagType transformTag = world.Schema.GetTagType<IsTransform>();
 
             //ensure capacity is met
-            uint capacity = Allocations.GetNextPowerOf2(world.MaxEntityValue + 1);
+            uint capacity = (world.MaxEntityValue + 1).GetNextPowerOf2();
             if (ltwValues.Length < capacity)
             {
                 parentEntities.Length = capacity;

@@ -15,7 +15,7 @@ namespace Transforms.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            simulator.AddSystem<TransformSystem>();
+            simulator.AddSystem(new TransformSystem());
         }
 
         protected override Schema CreateSchema()

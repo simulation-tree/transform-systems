@@ -9,7 +9,7 @@ namespace Transforms.Tests
     {
         static TransformSystemsTests()
         {
-            MetadataRegistry.Load<TransformsTypeBank>();
+            MetadataRegistry.Load<TransformsMetadataBank>();
         }
 
         protected override void SetUp()

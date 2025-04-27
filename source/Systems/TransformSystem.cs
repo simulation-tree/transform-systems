@@ -126,6 +126,20 @@ namespace Transforms.Systems
 
             FindComponents(world, positionComponent, rotationComponent, eulerAnglesComponent, scaleComponent, pivotComponent, anchorComponent, transformTag);
             AddMissingComponents(world, transformTag, ltwComponent, worldRotationComponent);
+            CalculateTransforms();
+
+            //apply values
+            ApplyValues(world, ltwComponent, worldRotationComponent, transformTag);
+        }
+
+        private void CalculateTransforms()
+        {
+            Span<uint> parentEntities = this.parentEntities.AsSpan();
+            Span<LocalToWorld> ltwValues = this.ltwValues.AsSpan();
+            Span<Quaternion> worldRotations = this.worldRotations.AsSpan();
+            Span<Anchor> anchors = this.anchors.AsSpan();
+            Span<Vector3> pivots = this.pivots.AsSpan();
+            Span<bool> hasAnchors = this.hasAnchors.AsSpan();
 
             //calculate ltw in descending order (roots towards leafs)
             //where each entity list is descending in depth
@@ -228,13 +242,21 @@ namespace Transforms.Systems
 
                 entities.Clear();
             }
-
-            //apply values
-            ApplyValues(world, ltwComponent, worldRotationComponent, transformTag);
         }
 
         private readonly void FindComponents(World world, int positionComponent, int rotationComponent, int eulerAnglesComponent, int scaleComponent, int pivotComponent, int anchorComponent, int transformTag)
         {
+            Span<Vector3> positions = this.positions.AsSpan();
+            Span<Vector3> scales = this.scales.AsSpan();
+            Span<Quaternion> rotations = this.rotations.AsSpan();
+            Span<Quaternion> eulerAngles = this.eulerAngles.AsSpan();
+            Span<Vector3> pivots = this.pivots.AsSpan();
+            Span<Anchor> anchors = this.anchors.AsSpan();
+            Span<bool> hasAnchors = this.hasAnchors.AsSpan();
+            Span<uint> parentEntities = this.parentEntities.AsSpan();
+            Span<LocalToWorld> ltwValues = this.ltwValues.AsSpan();
+            Span<Quaternion> worldRotations = this.worldRotations.AsSpan();
+
             foreach (Chunk chunk in world.Chunks)
             {
                 BitMask componentTypes = chunk.Definition.componentTypes;
@@ -311,8 +333,22 @@ namespace Transforms.Systems
                     {
                         uint parent = world.GetParent(entity);
                         parentEntities[(int)entity] = parent;
-                        LocalToWorld ltp = CalculateLocalToParent(world, entity, !hasAnchors[(int)entity], out Quaternion localRotation);
-                        ltwValues[(int)entity] = ltp;
+
+                        //get local to parent matrix first
+                        ref Vector3 position = ref positions[(int)entity];
+                        ref Quaternion eulerAngle = ref eulerAngles[(int)entity];
+                        ref Quaternion rotation = ref rotations[(int)entity];
+                        ref Vector3 scale = ref scales[(int)entity];
+                        Matrix4x4 ltp = Matrix4x4.Identity;
+                        Quaternion localRotation = Quaternion.Identity;
+                        ltp *= Matrix4x4.CreateScale(scale);
+                        localRotation = eulerAngle * localRotation;
+                        localRotation = rotation * localRotation;
+                        ltp *= Matrix4x4.CreateFromQuaternion(localRotation);
+                        Vector3 pivot = !hasAnchors[(int)entity] ? pivots[(int)entity] : Vector3.Zero;
+                        ltp *= Matrix4x4.CreateTranslation(position - pivot * scale);
+
+                        ltwValues[(int)entity] = new(ltp);
                         worldRotations[(int)entity] = localRotation;
 
                         //calculate how deep the entity is
@@ -380,6 +416,8 @@ namespace Transforms.Systems
 
         private readonly void ApplyValues(World world, int ltwComponent, int worldRotationComponent, int transformTag)
         {
+            Span<LocalToWorld> ltwValues = this.ltwValues.AsSpan();
+            Span<Quaternion> worldRotations = this.worldRotations.AsSpan();
             foreach (Chunk chunk in world.Chunks)
             {
                 Definition key = chunk.Definition;
@@ -396,23 +434,6 @@ namespace Transforms.Systems
                     }
                 }
             }
-        }
-
-        private readonly LocalToWorld CalculateLocalToParent(World world, uint entity, bool applyPivot, out Quaternion localRotation)
-        {
-            ref Vector3 position = ref positions[(int)entity];
-            ref Quaternion eulerAngle = ref eulerAngles[(int)entity];
-            ref Quaternion rotation = ref rotations[(int)entity];
-            ref Vector3 scale = ref scales[(int)entity];
-            Matrix4x4 ltp = Matrix4x4.Identity;
-            localRotation = Quaternion.Identity;
-            ltp *= Matrix4x4.CreateScale(scale);
-            localRotation = eulerAngle * localRotation;
-            localRotation = rotation * localRotation;
-            ltp *= Matrix4x4.CreateFromQuaternion(localRotation);
-            Vector3 pivot = applyPivot ? pivots[(int)entity] : Vector3.Zero;
-            ltp *= Matrix4x4.CreateTranslation(position - pivot * scale);
-            return new(ltp);
         }
     }
 }

@@ -118,57 +118,14 @@ namespace Transforms.Systems
             rotations.Fill(Rotation.Default.value);
             eulerAngles.Fill(Rotation.Default.value);
 
-            //collect values
-            foreach (Chunk chunk in world.Chunks)
-            {
-                Definition definition = chunk.Definition;
-                bool containsPosition = definition.componentTypes.Contains(positionComponent);
-                bool containsScale = definition.componentTypes.Contains(scaleComponent);
-                bool containsRotation = definition.componentTypes.Contains(rotationComponent);
-                bool containsEulerAngles = definition.componentTypes.Contains(eulerAnglesComponent);
-                if (containsPosition || containsScale || containsRotation || containsEulerAngles)
-                {
-                    ReadOnlySpan<uint> entities = chunk.Entities;
-                    ComponentEnumerator<Position> positionComponents = containsPosition ? chunk.GetComponents<Position>(positionComponent) : default;
-                    ComponentEnumerator<Scale> scaleComponents = containsScale ? chunk.GetComponents<Scale>(scaleComponent) : default;
-                    ComponentEnumerator<Rotation> rotationComponents = containsRotation ? chunk.GetComponents<Rotation>(rotationComponent) : default;
-                    ComponentEnumerator<EulerAngles> eulerAngleComponents = containsEulerAngles ? chunk.GetComponents<EulerAngles>(eulerAnglesComponent) : default;
-                    for (int i = 0; i < entities.Length; i++)
-                    {
-                        uint entity = entities[i];
-                        if (containsPosition)
-                        {
-                            positions[(int)entity] = positionComponents[i].value;
-                        }
-
-                        if (containsScale)
-                        {
-                            scales[(int)entity] = scaleComponents[i].value;
-                        }
-
-                        if (containsRotation)
-                        {
-                            rotations[(int)entity] = rotationComponents[i].value;
-                        }
-
-                        if (containsEulerAngles)
-                        {
-                            eulerAngles[(int)entity] = eulerAngleComponents[i].AsQuaternion();
-                        }
-                    }
-                }
-            }
-
             //reset entities list
             foreach (List<uint> entities in sortedEntities)
             {
                 entities.Clear();
             }
 
-            FindPivots(world, pivotComponent, transformTag);
-            FindAnchors(world, anchorComponent, transformTag);
+            FindComponents(world, positionComponent, rotationComponent, eulerAnglesComponent, scaleComponent, pivotComponent, anchorComponent, transformTag);
             AddMissingComponents(world, transformTag, ltwComponent, worldRotationComponent);
-            FindTransforms(world, transformTag);
 
             //calculate ltw in descending order (roots towards leafs)
             //where each entity list is descending in depth
@@ -276,14 +233,81 @@ namespace Transforms.Systems
             ApplyValues(world, ltwComponent, worldRotationComponent, transformTag);
         }
 
-        private readonly void FindTransforms(World world, int transformTag)
+        private readonly void FindComponents(World world, int positionComponent, int rotationComponent, int eulerAnglesComponent, int scaleComponent, int pivotComponent, int anchorComponent, int transformTag)
         {
             foreach (Chunk chunk in world.Chunks)
             {
-                Definition key = chunk.Definition;
-                if (key.ContainsTag(transformTag)) //todo: replace this with a query
+                BitMask componentTypes = chunk.Definition.componentTypes;
+                ReadOnlySpan<uint> entities = chunk.Entities;
+
+                if (componentTypes.Contains(positionComponent))
                 {
-                    foreach (uint entity in chunk.Entities)
+                    ComponentEnumerator<Position> positionComponents = chunk.GetComponents<Position>(positionComponent);
+                    for (int i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        positions[(int)entity] = positionComponents[i].value;
+                    }
+                }
+
+                if (componentTypes.Contains(scaleComponent))
+                {
+                    ComponentEnumerator<Scale> scaleComponents = chunk.GetComponents<Scale>(scaleComponent);
+                    for (int i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        scales[(int)entity] = scaleComponents[i].value;
+                    }
+                }
+
+                if (componentTypes.Contains(rotationComponent))
+                {
+                    ComponentEnumerator<Rotation> rotationComponents = chunk.GetComponents<Rotation>(rotationComponent);
+                    for (int i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        rotations[(int)entity] = rotationComponents[i].value;
+                    }
+                }
+
+                if (componentTypes.Contains(eulerAnglesComponent))
+                {
+                    ComponentEnumerator<EulerAngles> eulerAngleComponents = chunk.GetComponents<EulerAngles>(eulerAnglesComponent);
+                    for (int i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        eulerAngles[(int)entity] = eulerAngleComponents[i].AsQuaternion();
+                    }
+                }
+
+                if (componentTypes.Contains(pivotComponent))
+                {
+                    ComponentEnumerator<Pivot> pivotComponents = chunk.GetComponents<Pivot>(pivotComponent);
+                    for (int i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        pivots[(int)entity] = pivotComponents[i].value;
+                    }
+                }
+
+                if (componentTypes.Contains(anchorComponent))
+                {
+                    ComponentEnumerator<Anchor> anchorComponents = chunk.GetComponents<Anchor>(anchorComponent);
+                    for (int i = 0; i < entities.Length; i++)
+                    {
+                        uint entity = entities[i];
+                        anchors[(int)entity] = anchorComponents[i];
+                        hasAnchors[(int)entity] = true;
+                    }
+                }
+            }
+
+            foreach (Chunk chunk in world.Chunks)
+            {
+                if (chunk.Definition.tagTypes.Contains(transformTag))
+                {
+                    ReadOnlySpan<uint> entities = chunk.Entities;
+                    foreach (uint entity in entities)
                     {
                         uint parent = world.GetParent(entity);
                         parentEntities[(int)entity] = parent;
@@ -315,7 +339,6 @@ namespace Transforms.Systems
         private readonly void AddMissingComponents(World world, int transformTag, int ltwComponent, int worldRotationComponent)
         {
             //go through all entities without a ltw component, and add it
-            Schema schema = world.Schema;
             foreach (Chunk chunk in world.Chunks)
             {
                 Definition definition = chunk.Definition;
@@ -351,44 +374,7 @@ namespace Transforms.Systems
             if (operation.Count > 0)
             {
                 operation.Perform(world);
-                operation.Clear();
-            }
-        }
-
-        private readonly void FindAnchors(World world, int anchorComponent, int transformTag)
-        {
-            foreach (Chunk chunk in world.Chunks)
-            {
-                Definition key = chunk.Definition;
-                if (key.ContainsComponent(anchorComponent) && key.ContainsTag(transformTag))
-                {
-                    ReadOnlySpan<uint> entities = chunk.Entities;
-                    ComponentEnumerator<Anchor> components = chunk.GetComponents<Anchor>(anchorComponent);
-                    for (int i = 0; i < entities.Length; i++)
-                    {
-                        uint entity = entities[i];
-                        anchors[(int)entity] = components[i];
-                        hasAnchors[(int)entity] = true;
-                    }
-                }
-            }
-        }
-
-        private readonly void FindPivots(World world, int pivotComponent, int transformTag)
-        {
-            foreach (Chunk chunk in world.Chunks)
-            {
-                Definition key = chunk.Definition;
-                if (key.ContainsComponent(pivotComponent) && key.ContainsTag(transformTag))
-                {
-                    ReadOnlySpan<uint> entities = chunk.Entities;
-                    ComponentEnumerator<Pivot> components = chunk.GetComponents<Pivot>(pivotComponent);
-                    for (int i = 0; i < entities.Length; i++)
-                    {
-                        uint entity = entities[i];
-                        pivots[(int)entity] = components[i].value;
-                    }
-                }
+                operation.Reset();
             }
         }
 

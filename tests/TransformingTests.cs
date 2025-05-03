@@ -47,7 +47,7 @@ namespace Transforms.Tests
             world.AddTag<IsTransform>(entity);
             world.AddComponent(entity, new Scale(1920, 1080, 1));
 
-            Anchor anchor = new(new(0f, false), new(0f, false), new(0f, false), new(0.5f, false), new(0.5f, false), new(1f, false));
+            Anchor anchor = new(0f, 0f, 0f, 0.5f, 0.5f, 1f);
             uint bottomLeftCanvas = world.CreateEntity();
             world.SetParent(bottomLeftCanvas, entity);
             world.AddTag<IsTransform>(bottomLeftCanvas);
@@ -63,7 +63,7 @@ namespace Transforms.Tests
             uint copyPoint = world.CreateEntity();
             world.SetParent(copyPoint, pointInsideCanvas);
             world.AddTag<IsTransform>(copyPoint);
-            world.AddComponent(copyPoint, new Anchor(new(0f, false), new(0f, false), new(0f, false), new(1f, false), new(1f, false), new(1f, false)));
+            world.AddComponent(copyPoint, new Anchor(0f, 0f, 0f, 1f, 1f, 1f));
 
             simulator.Update(TimeSpan.FromSeconds(0.01f));
 
@@ -97,7 +97,7 @@ namespace Transforms.Tests
             world.SetParent(bordered, canvas);
             world.AddTag<IsTransform>(bordered);
             world.AddComponent(bordered, new Scale(1, 1));
-            world.AddComponent(bordered, new Anchor(new(10f, true), new(10f, true), default, new(10f, true), new(10f, true), default));
+            world.AddComponent(bordered, new Anchor(10f, 10f, default, 10f, 10f, default, Anchor.Relativeness.X | Anchor.Relativeness.Y));
 
             simulator.Update(TimeSpan.FromSeconds(0.01f));
 
@@ -128,7 +128,7 @@ namespace Transforms.Tests
         {
             uint parent = world.CreateEntity();
             world.AddComponent(parent, new Position(5, 0, 0));
-            world.AddComponent(parent, EulerAngles.CreateFromDegrees(0f, 90f, 0f));
+            world.AddComponent(parent, new Rotation(Quaternion.CreateFromYawPitchRoll(MathF.Tau * 0.25f, 0f, 0f)));
             world.AddComponent(parent, new Scale(2, 2, 2));
             world.AddTag<IsTransform>(parent);
 

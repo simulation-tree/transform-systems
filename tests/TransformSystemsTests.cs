@@ -15,12 +15,12 @@ namespace Transforms.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            simulator.Add(new TransformSystem());
+            Simulator.Add(new TransformSystem());
         }
 
         protected override void TearDown()
         {
-            simulator.Remove<TransformSystem>();
+            Simulator.Remove<TransformSystem>();
             base.TearDown();
         }
 

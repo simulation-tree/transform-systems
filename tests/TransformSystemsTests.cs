@@ -15,7 +15,13 @@ namespace Transforms.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            simulator.AddSystem(new TransformSystem());
+            simulator.Add(new TransformSystem());
+        }
+
+        protected override void TearDown()
+        {
+            simulator.Remove<TransformSystem>();
+            base.TearDown();
         }
 
         protected override Schema CreateSchema()

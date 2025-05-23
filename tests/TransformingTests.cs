@@ -25,7 +25,7 @@ namespace Transforms.Tests
             world.AddComponent(crosshairVertical, Anchor.Centered);
             world.AddComponent(crosshairVertical, new Scale(1, 32, 1));
 
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
             LocalToWorld horizontalLtw = world.GetComponent<LocalToWorld>(crosshairHorizontal);
             Assert.That(horizontalLtw.Position.X, Is.EqualTo(960));
@@ -65,7 +65,7 @@ namespace Transforms.Tests
             world.AddTag<IsTransform>(copyPoint);
             world.AddComponent(copyPoint, new Anchor(0f, 0f, 0f, 1f, 1f, 1f));
 
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
             LocalToWorld bottomLeftCanvasLtw = world.GetComponent<LocalToWorld>(bottomLeftCanvas);
             Assert.That(bottomLeftCanvasLtw.Position.X, Is.EqualTo(0));
@@ -99,7 +99,7 @@ namespace Transforms.Tests
             world.AddComponent(bordered, new Scale(1, 1));
             world.AddComponent(bordered, new Anchor(10f, 10f, default, 10f, 10f, default, Anchor.Relativeness.X | Anchor.Relativeness.Y));
 
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
             LocalToWorld borderedLtw = world.GetComponent<LocalToWorld>(bordered);
             Assert.That(borderedLtw.Position.X, Is.EqualTo(10));
@@ -116,7 +116,7 @@ namespace Transforms.Tests
             world.AddComponent(entity, new Scale(2, 1, 2));
             world.AddTag<IsTransform>(entity);
 
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
             Assert.That(world.ContainsComponent<LocalToWorld>(entity), Is.True);
             LocalToWorld ltw = world.GetComponent<LocalToWorld>(entity);
@@ -138,7 +138,7 @@ namespace Transforms.Tests
             world.AddTag<IsTransform>(child);
 
             Assert.That(world.GetParent(child), Is.EqualTo(parent));
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
             Assert.That(world.ContainsComponent<LocalToWorld>(child), Is.True);
             LocalToWorld childLtw = world.GetComponent<LocalToWorld>(child);
@@ -158,7 +158,7 @@ namespace Transforms.Tests
             world.AddTag<IsTransform>(entity);
             world.AddComponent(entity, new Rotation(sampleRotation));
 
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
             Quaternion worldRotation = world.GetComponent<WorldRotation>(entity).value;
             Assert.That(worldRotation, Is.EqualTo(sampleRotation));
@@ -178,7 +178,7 @@ namespace Transforms.Tests
             world.AddTag<IsTransform>(child);
             world.AddComponent(child, new Rotation(localRotation));
 
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
             Quaternion worldRotation = world.GetComponent<WorldRotation>(child).value;
             Quaternion expectedWorldRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI * 0.5f);

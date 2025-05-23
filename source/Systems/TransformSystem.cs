@@ -8,7 +8,7 @@ using Worlds;
 
 namespace Transforms.Systems
 {
-    public readonly partial struct TransformSystem : ISystem
+    public partial class TransformSystem : ISystem, IDisposable
     {
         private readonly Array<uint> parentEntities;
         private readonly Array<Vector3> pivots;
@@ -39,7 +39,7 @@ namespace Transforms.Systems
             rotations = new();
         }
 
-        public readonly void Dispose()
+        public void Dispose()
         {
             foreach (List<uint> entities in sortedEntities)
             {
@@ -60,21 +60,9 @@ namespace Transforms.Systems
             pivots.Dispose();
         }
 
-        readonly void ISystem.Start(in SystemContext context, in World world)
+        void ISystem.Update(Simulator simulator, double deltaTime)
         {
-        }
-
-        readonly void ISystem.Update(in SystemContext context, in World world, in TimeSpan delta)
-        {
-            Update(world);
-        }
-
-        readonly void ISystem.Finish(in SystemContext context, in World world)
-        {
-        }
-
-        private readonly void Update(World world)
-        {
+            World world = simulator.world;
             int positionComponent = world.Schema.GetComponentType<Position>();
             int scaleComponent = world.Schema.GetComponentType<Scale>();
             int rotationComponent = world.Schema.GetComponentType<Rotation>();
@@ -126,7 +114,7 @@ namespace Transforms.Systems
             ApplyValues(world, ltwComponent, worldRotationComponent, transformTag);
         }
 
-        private readonly void CalculateTransforms()
+        private void CalculateTransforms()
         {
             Span<uint> parentEntities = this.parentEntities.AsSpan();
             Span<LocalToWorld> ltwValues = this.ltwValues.AsSpan();
@@ -241,7 +229,7 @@ namespace Transforms.Systems
             }
         }
 
-        private readonly void FindComponents(World world, int positionComponent, int rotationComponent, int scaleComponent, int pivotComponent, int anchorComponent, int transformTag)
+        private void FindComponents(World world, int positionComponent, int rotationComponent, int scaleComponent, int pivotComponent, int anchorComponent, int transformTag)
         {
             Span<Vector3> positions = this.positions.AsSpan();
             Span<Vector3> scales = this.scales.AsSpan();
@@ -358,7 +346,7 @@ namespace Transforms.Systems
             }
         }
 
-        private readonly void AddMissingComponents(World world, int transformTag, int ltwComponent, int worldRotationComponent)
+        private void AddMissingComponents(World world, int transformTag, int ltwComponent, int worldRotationComponent)
         {
             //go through all entities without a ltw component, and add it
             ReadOnlySpan<Chunk> chunks = world.Chunks;
@@ -402,7 +390,7 @@ namespace Transforms.Systems
             }
         }
 
-        private readonly void ApplyValues(World world, int ltwComponent, int worldRotationComponent, int transformTag)
+        private void ApplyValues(World world, int ltwComponent, int worldRotationComponent, int transformTag)
         {
             Span<LocalToWorld> ltwValues = this.ltwValues.AsSpan();
             Span<Quaternion> worldRotations = this.worldRotations.AsSpan();

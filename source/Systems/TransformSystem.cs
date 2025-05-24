@@ -22,8 +22,16 @@ namespace Transforms.Systems
         private readonly Array<Vector3> positions;
         private readonly Array<Vector3> scales;
         private readonly Array<Quaternion> rotations;
+        private readonly int positionComponent;
+        private readonly int scaleComponent;
+        private readonly int rotationComponent;
+        private readonly int anchorComponent;
+        private readonly int pivotComponent;
+        private readonly int ltwComponent;
+        private readonly int worldRotationComponent;
+        private readonly int transformTag;
 
-        public TransformSystem()
+        public TransformSystem(Simulator simulator)
         {
             parentEntities = new();
             pivots = new();
@@ -37,6 +45,16 @@ namespace Transforms.Systems
             positions = new();
             scales = new();
             rotations = new();
+
+            Schema schema = simulator.world.Schema;
+            positionComponent = schema.GetComponentType<Position>();
+            scaleComponent = schema.GetComponentType<Scale>();
+            rotationComponent = schema.GetComponentType<Rotation>();
+            anchorComponent = schema.GetComponentType<Anchor>();
+            pivotComponent = schema.GetComponentType<Pivot>();
+            ltwComponent = schema.GetComponentType<LocalToWorld>();
+            worldRotationComponent = schema.GetComponentType<WorldRotation>();
+            transformTag = schema.GetTagType<IsTransform>();
         }
 
         public void Dispose()
@@ -62,17 +80,8 @@ namespace Transforms.Systems
 
         void ISystem.Update(Simulator simulator, double deltaTime)
         {
-            World world = simulator.world;
-            int positionComponent = world.Schema.GetComponentType<Position>();
-            int scaleComponent = world.Schema.GetComponentType<Scale>();
-            int rotationComponent = world.Schema.GetComponentType<Rotation>();
-            int anchorComponent = world.Schema.GetComponentType<Anchor>();
-            int pivotComponent = world.Schema.GetComponentType<Pivot>();
-            int ltwComponent = world.Schema.GetComponentType<LocalToWorld>();
-            int worldRotationComponent = world.Schema.GetComponentType<WorldRotation>();
-            int transformTag = world.Schema.GetTagType<IsTransform>();
-
             //ensure capacity is met
+            World world = simulator.world;
             int capacity = (world.MaxEntityValue + 1).GetNextPowerOf2();
             if (ltwValues.Length < capacity)
             {

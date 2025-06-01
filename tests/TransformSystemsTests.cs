@@ -1,4 +1,5 @@
 ﻿using Simulation.Tests;
+using Transforms.Messages;
 using Transforms.Systems;
 using Types;
 using Worlds;
@@ -7,6 +8,8 @@ namespace Transforms.Tests
 {
     public abstract class TransformSystemsTests : SimulationTests
     {
+        public World world;
+
         static TransformSystemsTests()
         {
             MetadataRegistry.Load<TransformsMetadataBank>();
@@ -15,20 +18,22 @@ namespace Transforms.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            Simulator.Add(new TransformSystem(Simulator));
+            Schema schema = new();
+            schema.Load<TransformsSchemaBank>();
+            world = new(schema);
+            Simulator.Add(new TransformSystem(Simulator, world));
         }
 
         protected override void TearDown()
         {
             Simulator.Remove<TransformSystem>();
+            world.Dispose();
             base.TearDown();
         }
 
-        protected override Schema CreateSchema()
+        protected override void Update(double deltaTime)
         {
-            Schema schema = base.CreateSchema();
-            schema.Load<TransformsSchemaBank>();
-            return schema;
+            Simulator.Broadcast(new TransformUpdate());
         }
     }
 }

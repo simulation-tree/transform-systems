@@ -3,13 +3,15 @@ using Simulation;
 using System;
 using System.Numerics;
 using Transforms.Components;
+using Transforms.Messages;
 using Unmanaged;
 using Worlds;
 
 namespace Transforms.Systems
 {
-    public partial class TransformSystem : ISystem, IDisposable
+    public sealed partial class TransformSystem : SystemBase, IListener<TransformUpdate>
     {
+        private readonly World world;
         private readonly Array<uint> parentEntities;
         private readonly Array<Vector3> pivots;
         private readonly Array<Anchor> anchors;
@@ -22,17 +24,19 @@ namespace Transforms.Systems
         private readonly Array<Vector3> positions;
         private readonly Array<Vector3> scales;
         private readonly Array<Quaternion> rotations;
-        private readonly int positionComponent;
-        private readonly int scaleComponent;
-        private readonly int rotationComponent;
-        private readonly int anchorComponent;
-        private readonly int pivotComponent;
-        private readonly int ltwComponent;
-        private readonly int worldRotationComponent;
-        private readonly int transformTag;
+        private readonly int positionType;
+        private readonly int scaleType;
+        private readonly int rotationType;
+        private readonly int anchorType;
+        private readonly int pivotType;
+        private readonly int ltwType;
+        private readonly int worldRotationType;
+        private readonly int tagType;
+        private readonly BitMask transformComponents;
 
-        public TransformSystem(Simulator simulator)
+        public TransformSystem(Simulator simulator, World world) : base(simulator)
         {
+            this.world = world;
             parentEntities = new();
             pivots = new();
             anchors = new();
@@ -41,23 +45,24 @@ namespace Transforms.Systems
             anchoredLtwValues = new();
             worldRotations = new();
             sortedEntities = new();
-            operation = new();
+            operation = new(world);
             positions = new();
             scales = new();
             rotations = new();
 
-            Schema schema = simulator.world.Schema;
-            positionComponent = schema.GetComponentType<Position>();
-            scaleComponent = schema.GetComponentType<Scale>();
-            rotationComponent = schema.GetComponentType<Rotation>();
-            anchorComponent = schema.GetComponentType<Anchor>();
-            pivotComponent = schema.GetComponentType<Pivot>();
-            ltwComponent = schema.GetComponentType<LocalToWorld>();
-            worldRotationComponent = schema.GetComponentType<WorldRotation>();
-            transformTag = schema.GetTagType<IsTransform>();
+            Schema schema = world.Schema;
+            positionType = schema.GetComponentType<Position>();
+            scaleType = schema.GetComponentType<Scale>();
+            rotationType = schema.GetComponentType<Rotation>();
+            anchorType = schema.GetComponentType<Anchor>();
+            pivotType = schema.GetComponentType<Pivot>();
+            ltwType = schema.GetComponentType<LocalToWorld>();
+            worldRotationType = schema.GetComponentType<WorldRotation>();
+            tagType = schema.GetTagType<IsTransform>();
+            transformComponents = new(ltwType, worldRotationType);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             foreach (List<uint> entities in sortedEntities)
             {
@@ -78,10 +83,9 @@ namespace Transforms.Systems
             pivots.Dispose();
         }
 
-        void ISystem.Update(Simulator simulator, double deltaTime)
+        void IListener<TransformUpdate>.Receive(ref TransformUpdate message)
         {
             //ensure capacity is met
-            World world = simulator.world;
             int capacity = (world.MaxEntityValue + 1).GetNextPowerOf2();
             if (ltwValues.Length < capacity)
             {
@@ -97,6 +101,16 @@ namespace Transforms.Systems
                 rotations.Length = capacity;
             }
 
+            int maxDepth = world.MaxDepth;
+            if (sortedEntities.Count <= maxDepth)
+            {
+                int toAdd = maxDepth - sortedEntities.Count;
+                for (int i = 0; i <= toAdd; i++)
+                {
+                    sortedEntities.Add(new(32));
+                }
+            }
+
             //clear state
             parentEntities.Clear();
             ltwValues.Fill(LocalToWorld.Default);
@@ -110,20 +124,19 @@ namespace Transforms.Systems
             rotations.Fill(Rotation.Default.value);
 
             //reset entities list
-            foreach (List<uint> entities in sortedEntities)
+            Span<List<uint>> sortedEntitiesSpan = sortedEntities.AsSpan();
+            for (int d = 0; d < sortedEntitiesSpan.Length; d++)
             {
-                entities.Clear();
+                sortedEntitiesSpan[d].Clear();
             }
 
-            FindComponents(world, positionComponent, rotationComponent, scaleComponent, pivotComponent, anchorComponent, transformTag);
-            AddMissingComponents(world, transformTag, ltwComponent, worldRotationComponent);
-            CalculateTransforms();
-
-            //apply values
-            ApplyValues(world, ltwComponent, worldRotationComponent, transformTag);
+            FindComponents(sortedEntitiesSpan);
+            AddMissingComponents();
+            CalculateTransforms(sortedEntitiesSpan);
+            ApplyValues();
         }
 
-        private void CalculateTransforms()
+        private void CalculateTransforms(Span<List<uint>> sortedEntities)
         {
             Span<uint> parentEntities = this.parentEntities.AsSpan();
             Span<LocalToWorld> ltwValues = this.ltwValues.AsSpan();
@@ -131,15 +144,15 @@ namespace Transforms.Systems
             Span<Anchor> anchors = this.anchors.AsSpan();
             Span<Vector3> pivots = this.pivots.AsSpan();
             Span<bool> hasAnchors = this.hasAnchors.AsSpan();
-            Span<List<uint>> sortedEntities = this.sortedEntities.AsSpan();
 
             //calculate ltw in descending order (roots towards leafs)
             //where each entity list is descending in depth
-            foreach (List<uint> entities in sortedEntities)
+            for (int d = 0; d < sortedEntities.Length; d++)
             {
-                Span<uint> entitiesSpan = entities.AsSpan();
-                foreach (uint entity in entitiesSpan)
+                Span<uint> entitiesSpan = sortedEntities[d].AsSpan();
+                for (int e = 0; e < entitiesSpan.Length; e++)
                 {
+                    uint entity = entitiesSpan[e];
                     uint parent = parentEntities[(int)entity];
                     ref LocalToWorld ltw = ref ltwValues[(int)entity];
                     ref Quaternion worldRotation = ref worldRotations[(int)entity];
@@ -233,12 +246,10 @@ namespace Transforms.Systems
                         worldRotation = parentWorldRotation * worldRotation;
                     }
                 }
-
-                entities.Clear();
             }
         }
 
-        private void FindComponents(World world, int positionComponent, int rotationComponent, int scaleComponent, int pivotComponent, int anchorComponent, int transformTag)
+        private void FindComponents(Span<List<uint>> sortedEntities)
         {
             Span<Vector3> positions = this.positions.AsSpan();
             Span<Vector3> scales = this.scales.AsSpan();
@@ -250,14 +261,15 @@ namespace Transforms.Systems
             Span<LocalToWorld> ltwValues = this.ltwValues.AsSpan();
             Span<Quaternion> worldRotations = this.worldRotations.AsSpan();
             ReadOnlySpan<Chunk> chunks = world.Chunks;
-            foreach (Chunk chunk in chunks)
+            for (int c = 0; c < chunks.Length; c++)
             {
-                BitMask componentTypes = chunk.Definition.componentTypes;
+                Chunk chunk = chunks[c];
+                Definition definition = chunk.Definition;
                 ReadOnlySpan<uint> entities = chunk.Entities;
-
-                if (componentTypes.Contains(positionComponent))
+                BitMask componentTypes = definition.componentTypes;
+                if (componentTypes.Contains(positionType))
                 {
-                    ComponentEnumerator<Position> positionComponents = chunk.GetComponents<Position>(positionComponent);
+                    ComponentEnumerator<Position> positionComponents = chunk.GetComponents<Position>(positionType);
                     for (int i = 0; i < entities.Length; i++)
                     {
                         uint entity = entities[i];
@@ -265,9 +277,9 @@ namespace Transforms.Systems
                     }
                 }
 
-                if (componentTypes.Contains(scaleComponent))
+                if (componentTypes.Contains(scaleType))
                 {
-                    ComponentEnumerator<Scale> scaleComponents = chunk.GetComponents<Scale>(scaleComponent);
+                    ComponentEnumerator<Scale> scaleComponents = chunk.GetComponents<Scale>(scaleType);
                     for (int i = 0; i < entities.Length; i++)
                     {
                         uint entity = entities[i];
@@ -275,9 +287,9 @@ namespace Transforms.Systems
                     }
                 }
 
-                if (componentTypes.Contains(rotationComponent))
+                if (componentTypes.Contains(rotationType))
                 {
-                    ComponentEnumerator<Rotation> rotationComponents = chunk.GetComponents<Rotation>(rotationComponent);
+                    ComponentEnumerator<Rotation> rotationComponents = chunk.GetComponents<Rotation>(rotationType);
                     for (int i = 0; i < entities.Length; i++)
                     {
                         uint entity = entities[i];
@@ -285,9 +297,9 @@ namespace Transforms.Systems
                     }
                 }
 
-                if (componentTypes.Contains(pivotComponent))
+                if (componentTypes.Contains(pivotType))
                 {
-                    ComponentEnumerator<Pivot> pivotComponents = chunk.GetComponents<Pivot>(pivotComponent);
+                    ComponentEnumerator<Pivot> pivotComponents = chunk.GetComponents<Pivot>(pivotType);
                     for (int i = 0; i < entities.Length; i++)
                     {
                         uint entity = entities[i];
@@ -295,25 +307,27 @@ namespace Transforms.Systems
                     }
                 }
 
-                if (componentTypes.Contains(anchorComponent))
+                if (componentTypes.Contains(anchorType))
                 {
-                    ComponentEnumerator<Anchor> anchorComponents = chunk.GetComponents<Anchor>(anchorComponent);
-                    for (int i = 0; i < entities.Length; i++)
+                    ComponentEnumerator<Anchor> anchorComponents = chunk.GetComponents<Anchor>(anchorType);
+                    for (int e = 0; e < entities.Length; e++)
                     {
-                        uint entity = entities[i];
-                        anchors[(int)entity] = anchorComponents[i];
+                        uint entity = entities[e];
+                        anchors[(int)entity] = anchorComponents[e];
                         hasAnchors[(int)entity] = true;
                     }
                 }
             }
 
-            foreach (Chunk chunk in chunks)
+            for (int c = 0; c < chunks.Length; c++)
             {
-                if (chunk.Definition.tagTypes.Contains(transformTag))
+                Chunk chunk = chunks[c];
+                if (chunk.Definition.tagTypes.Contains(tagType))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
-                    foreach (uint entity in entities)
+                    for (int e = 0; e < entities.Length; e++)
                     {
+                        uint entity = entities[e];
                         uint parent = world.GetParent(entity);
                         parentEntities[(int)entity] = parent;
 
@@ -330,89 +344,81 @@ namespace Transforms.Systems
                         ltwValues[(int)entity] = new(ltp);
                         worldRotations[(int)entity] = rotation;
 
-                        //calculate how deep the entity is
-                        int depth = 0;
-                        uint current = parent;
-                        while (current != default)
-                        {
-                            depth++;
-                            current = world.GetParent(current);
-                        }
-
-                        if (sortedEntities.Count <= depth)
-                        {
-                            int toAdd = depth - sortedEntities.Count;
-                            for (int i = 0; i <= toAdd; i++)
-                            {
-                                sortedEntities.Add(new());
-                            }
-                        }
-
                         //put the entity into a list located at the index, where the index is the depth
+                        int depth = world.GetDepth(entity);
                         sortedEntities[depth].Add(entity);
                     }
                 }
             }
         }
 
-        private void AddMissingComponents(World world, int transformTag, int ltwComponent, int worldRotationComponent)
+        private void AddMissingComponents()
         {
             //go through all entities without a ltw component, and add it
-            ReadOnlySpan<Chunk> chunks = world.Chunks;
-            foreach (Chunk chunk in chunks)
-            {
-                Definition definition = chunk.Definition;
-                if (definition.ContainsTag(transformTag) && !definition.ContainsComponent(ltwComponent))
-                {
-                    operation.SelectEntities(chunk.Entities);
-                }
-            }
-
-            if (operation.Count > 0)
-            {
-                operation.AddComponentType<LocalToWorld>();
-                operation.ClearSelection();
-            }
-
-            //go through all without a world rotation component, and add that too
             bool selectedAny = false;
-            chunks = world.Chunks;
-            foreach (Chunk chunk in chunks)
+            ReadOnlySpan<Chunk> chunks = world.Chunks;
+            for (int c = 0; c < chunks.Length; c++)
             {
-                Definition definition = chunk.Definition;
-                if (definition.ContainsTag(transformTag) && !definition.ContainsComponent(worldRotationComponent))
+                Chunk chunk = chunks[c];
+                if (chunk.Count > 0)
                 {
-                    operation.SelectEntities(chunk.Entities);
-                    selectedAny = true;
+                    Definition definition = chunk.Definition;
+                    if (definition.ContainsTag(tagType) && !definition.ContainsComponent(ltwType))
+                    {
+                        operation.AppendMultipleEntitiesToSelection(chunk.Entities);
+                        selectedAny = true;
+                    }
                 }
             }
 
             if (selectedAny)
             {
-                operation.AddComponentType<WorldRotation>();
+                operation.AddComponentType(ltwType);
+                operation.ClearSelection();
             }
 
-            if (operation.Count > 0)
+            //go through all without a world rotation component, and add that too
+            selectedAny = false;
+            chunks = world.Chunks;
+            for (int c = 0; c < chunks.Length; c++)
             {
-                operation.Perform(world);
+                Chunk chunk = chunks[c];
+                if (chunk.Count > 0)
+                {
+                    Definition definition = chunk.Definition;
+                    if (definition.ContainsTag(tagType) && !definition.ContainsComponent(worldRotationType))
+                    {
+                        operation.AppendMultipleEntitiesToSelection(chunk.Entities);
+                        selectedAny = true;
+                    }
+                }
+            }
+
+            if (selectedAny)
+            {
+                operation.AddComponentType(worldRotationType);
+            }
+
+            if (operation.TryPerform())
+            {
                 operation.Reset();
             }
         }
 
-        private void ApplyValues(World world, int ltwComponent, int worldRotationComponent, int transformTag)
+        private void ApplyValues()
         {
             Span<LocalToWorld> ltwValues = this.ltwValues.AsSpan();
             Span<Quaternion> worldRotations = this.worldRotations.AsSpan();
-            BitMask componentMask = new(ltwComponent, worldRotationComponent);
             ReadOnlySpan<Chunk> chunks = world.Chunks;
-            foreach (Chunk chunk in chunks)
+            for (int c = 0; c < chunks.Length; c++)
             {
+                Chunk chunk = chunks[c];
                 Definition definition = chunk.Definition;
-                if (definition.tagTypes.Contains(transformTag) && definition.componentTypes.ContainsAll(componentMask))
+                if (definition.tagTypes.Contains(tagType) && definition.componentTypes.ContainsAll(transformComponents))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
-                    ComponentEnumerator<LocalToWorld> ltwComponents = chunk.GetComponents<LocalToWorld>(ltwComponent);
-                    ComponentEnumerator<WorldRotation> worldRotationComponents = chunk.GetComponents<WorldRotation>(worldRotationComponent);
+                    ComponentEnumerator<LocalToWorld> ltwComponents = chunk.GetComponents<LocalToWorld>(ltwType);
+                    ComponentEnumerator<WorldRotation> worldRotationComponents = chunk.GetComponents<WorldRotation>(worldRotationType);
                     for (int i = 0; i < entities.Length; i++)
                     {
                         uint entity = entities[i];

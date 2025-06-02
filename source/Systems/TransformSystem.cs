@@ -319,6 +319,7 @@ namespace Transforms.Systems
                 }
             }
 
+            ReadOnlySpan<Slot> slots = world.Slots;
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
@@ -328,8 +329,8 @@ namespace Transforms.Systems
                     for (int e = 0; e < entities.Length; e++)
                     {
                         uint entity = entities[e];
-                        uint parent = world.GetParent(entity);
-                        parentEntities[(int)entity] = parent;
+                        Slot slot = slots[(int)entity];
+                        parentEntities[(int)entity] = slot.parent;
 
                         //get local to parent matrix first
                         ref Vector3 position = ref positions[(int)entity];
@@ -345,8 +346,7 @@ namespace Transforms.Systems
                         worldRotations[(int)entity] = rotation;
 
                         //put the entity into a list located at the index, where the index is the depth
-                        int depth = world.GetDepth(entity);
-                        sortedEntities[depth].Add(entity);
+                        sortedEntities[slot.depth].Add(entity);
                     }
                 }
             }

@@ -1,30 +1,39 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
-        <RootNamespace>Transforms</RootNamespace>
-        <ImplicitUsings>disable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <Title>Transforms Systems</Title>
-        <Authors>popcron</Authors>
-        <Company>simulation-tree</Company>
-        <RepositoryUrl>https://github.com/simulation-tree/transform-systems</RepositoryUrl>
-        <PackageId/>
-    </PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Transforms</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Title>Transforms Systems</Title>
+    <Authors>popcron</Authors>
+    <Company>simulation-tree</Company>
+    <RepositoryUrl>https://github.com/simulation-tree/transform-systems</RepositoryUrl>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj"/>
-        <ProjectReference Include="..\..\transforms\source\Transforms.csproj"/>
-        <ProjectReference Include="..\..\unmanaged\core\Unmanaged.Core.csproj"/>
-        <ProjectReference Include="..\..\simulation\generator\Simulation.Generator.csproj">
-            <OutputItemType>Analyzer</OutputItemType>
-            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-        </ProjectReference>
-        <ProjectReference Include="..\..\worlds\generator\Worlds.Generator.csproj">
-            <OutputItemType>Analyzer</OutputItemType>
-            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-        </ProjectReference>
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj"/>
+    <ProjectReference Include="..\..\transforms\source\Transforms.csproj"/>
+    <ProjectReference Include="..\..\unmanaged\core\Unmanaged.Core.csproj"/>
+    <ProjectReference Include="..\..\simulation\generator\Simulation.Generator.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\worlds\generator\Worlds.Generator.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="bin/Debug/net9.0/Transforms.Systems.dll" Pack="true" PackagePath="tools/debug/Transforms.Systems.dll" Visible="false"/>
+    <Content Include="bin/Debug/net9.0/Transforms.Systems.xml" Pack="true" PackagePath="tools/debug/Transforms.Systems.xml" Visible="false"/>
+    <Content Include="bin/Release/net9.0/Transforms.Systems.dll" Pack="true" PackagePath="tools/release/Transforms.Systems.dll" Visible="false"/>
+    <Content Include="bin/Release/net9.0/Transforms.Systems.xml" Pack="true" PackagePath="tools/release/Transforms.Systems.xml" Visible="false"/>
+    <Content Include="build/Transforms.Systems.targets" Pack="true" PackagePath="build/Transforms.Systems.targets" Visible="false"/>
+  </ItemGroup>
 
 </Project>

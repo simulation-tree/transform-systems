@@ -11,7 +11,7 @@
     <Company>simulation-tree</Company>
     <RepositoryUrl>https://github.com/simulation-tree/transform-systems</RepositoryUrl>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <OutDir>bin/$(TargetFramework)/$(Configuration)</OutDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,11 +29,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="bin/Debug/net9.0/Transforms.Systems.dll" Pack="true" PackagePath="tools/debug/Transforms.Systems.dll" Visible="false"/>
-    <Content Include="bin/Debug/net9.0/Transforms.Systems.xml" Pack="true" PackagePath="tools/debug/Transforms.Systems.xml" Visible="false" Condition="Exists('bin/Debug/net9.0/Transforms.Systems.xml')"/>
-    <Content Include="bin/Release/net9.0/Transforms.Systems.dll" Pack="true" PackagePath="tools/release/Transforms.Systems.dll" Visible="false"/>
-    <Content Include="bin/Release/net9.0/Transforms.Systems.xml" Pack="true" PackagePath="tools/release/Transforms.Systems.xml" Visible="false" Condition="Exists('bin/Release/net9.0/Transforms.Systems.xml')"/>
-    <Content Include="build/Transforms.Systems.targets" Pack="true" PackagePath="build/Transforms.Systems.targets" Visible="false"/>
+    <Content Include="bin/**/*" Pack="true" PackagePath="lib" Visible="false"/>
+    <Content Include="buildTransitive/**/*" Pack="true" PackagePath="buildTransitive"/>
   </ItemGroup>
 
 </Project>

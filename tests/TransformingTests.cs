@@ -41,6 +41,20 @@ namespace Transforms.Tests
         }
 
         [Test]
+        public void SimpleParenting()
+        {
+            Transform a = new(world, Vector3.Zero, Quaternion.Identity, Vector3.One * 2f);
+            Transform b = new(world, Vector3.One, Quaternion.Identity, Vector3.One);
+            b.SetParent(a);
+
+            Update();
+
+            Assert.That(b.WorldPosition, Is.EqualTo(Vector3.One * 2f));
+            Assert.That(b.WorldRotation, Is.EqualTo(Quaternion.Identity));
+            Assert.That(b.WorldScale, Is.EqualTo(Vector3.One * 2f));
+        }
+
+        [Test]
         public void DeepAnchoring()
         {
             uint entity = world.CreateEntity();

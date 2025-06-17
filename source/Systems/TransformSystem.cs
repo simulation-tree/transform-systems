@@ -360,12 +360,13 @@ namespace Transforms.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.Count > 0)
+                ReadOnlySpan<uint> entities = chunk.Entities;
+                if (entities.Length > 0)
                 {
                     Definition definition = chunk.Definition;
                     if (definition.ContainsTag(tagType) && !definition.ContainsComponent(ltwType))
                     {
-                        operation.AppendMultipleEntitiesToSelection(chunk.Entities);
+                        operation.AppendMultipleEntitiesToSelection(entities);
                         selectedAny = true;
                     }
                 }
@@ -383,12 +384,13 @@ namespace Transforms.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.Count > 0)
+                ReadOnlySpan<uint> entities = chunk.Entities;
+                if (entities.Length > 0)
                 {
                     Definition definition = chunk.Definition;
                     if (definition.ContainsTag(tagType) && !definition.ContainsComponent(worldRotationType))
                     {
-                        operation.AppendMultipleEntitiesToSelection(chunk.Entities);
+                        operation.AppendMultipleEntitiesToSelection(entities);
                         selectedAny = true;
                     }
                 }

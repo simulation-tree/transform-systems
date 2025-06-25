@@ -354,8 +354,7 @@ namespace Transforms.Systems
 
         private void AddMissingComponents()
         {
-            //go through all entities without a ltw component, and add it
-            bool selectedAny = false;
+            //go through all entities without an ltw or world rotation component, and add them
             ReadOnlySpan<Chunk> chunks = world.Chunks;
             for (int c = 0; c < chunks.Length; c++)
             {
@@ -364,45 +363,21 @@ namespace Transforms.Systems
                 if (entities.Length > 0)
                 {
                     Definition definition = chunk.Definition;
-                    if (definition.ContainsTag(tagType) && !definition.ContainsComponent(ltwType))
+                    if (definition.ContainsTag(tagType))
                     {
-                        operation.AppendMultipleEntitiesToSelection(entities);
-                        selectedAny = true;
+                        if (!definition.ContainsComponent(ltwType) || !definition.ContainsComponent(worldRotationType))
+                        {
+                            operation.AppendMultipleEntitiesToSelection(entities);
+                        }
                     }
                 }
             }
 
-            if (selectedAny)
+            if (operation.Count > 0)
             {
-                operation.AddComponentType(ltwType);
-                operation.ClearSelection();
-            }
-
-            //go through all without a world rotation component, and add that too
-            selectedAny = false;
-            chunks = world.Chunks;
-            for (int c = 0; c < chunks.Length; c++)
-            {
-                Chunk chunk = chunks[c];
-                ReadOnlySpan<uint> entities = chunk.Entities;
-                if (entities.Length > 0)
-                {
-                    Definition definition = chunk.Definition;
-                    if (definition.ContainsTag(tagType) && !definition.ContainsComponent(worldRotationType))
-                    {
-                        operation.AppendMultipleEntitiesToSelection(entities);
-                        selectedAny = true;
-                    }
-                }
-            }
-
-            if (selectedAny)
-            {
-                operation.AddComponentType(worldRotationType);
-            }
-
-            if (operation.TryPerform())
-            {
+                operation.TryAddComponentType(ltwType);
+                operation.TryAddComponentType(worldRotationType);
+                operation.Perform();
                 operation.Reset();
             }
         }

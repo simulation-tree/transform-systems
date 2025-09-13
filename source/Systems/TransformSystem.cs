@@ -264,9 +264,8 @@ namespace Transforms.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                Definition definition = chunk.Definition;
                 ReadOnlySpan<uint> entities = chunk.Entities;
-                BitMask componentTypes = definition.componentTypes;
+                BitMask componentTypes = chunk.componentTypes;
                 if (componentTypes.Contains(positionType))
                 {
                     ComponentEnumerator<Position> positionComponents = chunk.GetComponents<Position>(positionType);
@@ -323,7 +322,7 @@ namespace Transforms.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.Definition.tagTypes.Contains(tagType))
+                if (chunk.tagTypes.Contains(tagType))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
                     for (int e = 0; e < entities.Length; e++)
@@ -362,10 +361,9 @@ namespace Transforms.Systems
                 ReadOnlySpan<uint> entities = chunk.Entities;
                 if (entities.Length > 0)
                 {
-                    Definition definition = chunk.Definition;
-                    if (definition.ContainsTag(tagType))
+                    if (chunk.tagTypes.Contains(tagType))
                     {
-                        if (!definition.ContainsComponent(ltwType) || !definition.ContainsComponent(worldRotationType))
+                        if (!chunk.componentTypes.Contains(ltwType) || !chunk.componentTypes.Contains(worldRotationType))
                         {
                             operation.AppendMultipleEntitiesToSelection(entities);
                         }
@@ -390,8 +388,7 @@ namespace Transforms.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                Definition definition = chunk.Definition;
-                if (definition.tagTypes.Contains(tagType) && definition.componentTypes.ContainsAll(transformComponents))
+                if (chunk.tagTypes.Contains(tagType) && chunk.componentTypes.ContainsAll(transformComponents))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
                     ComponentEnumerator<LocalToWorld> ltwComponents = chunk.GetComponents<LocalToWorld>(ltwType);

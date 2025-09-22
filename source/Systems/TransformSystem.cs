@@ -265,7 +265,7 @@ namespace Transforms.Systems
             {
                 Chunk chunk = chunks[c];
                 ReadOnlySpan<uint> entities = chunk.Entities;
-                BitMask componentTypes = chunk.componentTypes;
+                BitMask componentTypes = chunk.ComponentTypes;
                 if (componentTypes.Contains(positionType))
                 {
                     ComponentEnumerator<Position> positionComponents = chunk.GetComponents<Position>(positionType);
@@ -322,7 +322,7 @@ namespace Transforms.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.tagTypes.Contains(tagType))
+                if (chunk.TagTypes.Contains(tagType))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
                     for (int e = 0; e < entities.Length; e++)
@@ -361,9 +361,9 @@ namespace Transforms.Systems
                 ReadOnlySpan<uint> entities = chunk.Entities;
                 if (entities.Length > 0)
                 {
-                    if (chunk.tagTypes.Contains(tagType))
+                    if (chunk.TagTypes.Contains(tagType))
                     {
-                        if (!chunk.componentTypes.Contains(ltwType) || !chunk.componentTypes.Contains(worldRotationType))
+                        if (!chunk.ComponentTypes.Contains(ltwType) || !chunk.ComponentTypes.Contains(worldRotationType))
                         {
                             operation.AppendMultipleEntitiesToSelection(entities);
                         }
@@ -388,7 +388,7 @@ namespace Transforms.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.tagTypes.Contains(tagType) && chunk.componentTypes.ContainsAll(transformComponents))
+                if (chunk.TagTypes.Contains(tagType) && chunk.ComponentTypes.ContainsAll(transformComponents))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
                     ComponentEnumerator<LocalToWorld> ltwComponents = chunk.GetComponents<LocalToWorld>(ltwType);
